@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import axiosInstance from '../api/axiosInstance';
 import { useNavigate } from 'react-router-dom';
 
 const EmployeePage = () => {
@@ -9,7 +9,7 @@ const EmployeePage = () => {
 
   // Fetch employees from Django API
   useEffect(() => {
-    axios.get('http://localhost:8000/api/employees/')
+    axiosInstance.get('/employees/')
       .then((res) => setEmployees(res.data))
       .catch((err) => console.error('Error fetching employees:', err));
   }, []);

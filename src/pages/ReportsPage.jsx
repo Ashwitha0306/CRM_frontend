@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import axiosInstance from '../api/axiosInstance';
 import { Bar, Pie } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -14,43 +14,53 @@ import {
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend);
 
 const ReportsPage = () => {
-  const [headcountData, setHeadcountData] = useState({});
-  const [attritionData, setAttritionData] = useState({});
+  const [headcountData, setHeadcountData] = useState(null);
+  const [attritionData, setAttritionData] = useState(null);
   const [certificates, setCertificates] = useState([]);
   const [reportType, setReportType] = useState('headcount');
+  const token = localStorage.getItem("access");
 
-  // Fetch analytics and certificate data from Django API
   useEffect(() => {
-    axios.get('http://localhost:8000/api/analytics/headcount/').then(res => {
-      setHeadcountData({
-        labels: res.data.labels,
-        datasets: [{
-          label: 'Employees',
-          data: res.data.values,
-          backgroundColor: '#3b82f6',
-        }]
-      });
-    });
+    const headers = { Authorization: `Bearer ${token}` };
 
-    axios.get('http://localhost:8000/api/analytics/attrition/').then(res => {
-      setAttritionData({
-        labels: res.data.labels,
-        datasets: [{
-          label: 'Attrition Rate (%)',
-          data: res.data.values,
-          backgroundColor: ['#f87171', '#fb923c', '#facc15', '#34d399', '#60a5fa'],
-        }]
-      });
-    });
+    axiosInstance.get('http://localhost:8000/api/analytics/headcount/', { headers })
+      .then(res => {
+        if (res.data?.labels && res.data?.values) {
+          setHeadcountData({
+            labels: res.data.labels,
+            datasets: [{
+              label: 'Employees',
+              data: res.data.values,
+              backgroundColor: '#3b82f6',
+            }]
+          });
+        }
+      })
+      .catch(err => console.error("Headcount API failed:", err));
 
-    axios.get('http://localhost:8000/api/certificates/expiring/').then(res => {
-      setCertificates(res.data);
-    });
-  }, []);
+    axiosInstance.get('http://localhost:8000/api/analytics/attrition/', { headers })
+      .then(res => {
+        if (res.data?.labels && res.data?.values) {
+          setAttritionData({
+            labels: res.data.labels,
+            datasets: [{
+              label: 'Attrition Rate (%)',
+              data: res.data.values,
+              backgroundColor: ['#f87171', '#fb923c', '#facc15', '#34d399', '#60a5fa'],
+            }]
+          });
+        }
+      })
+      .catch(err => console.error("Attrition API failed:", err));
+
+    axiosInstance.get('http://localhost:8000/api/certificates/expiring/', { headers })
+      .then(res => setCertificates(res.data || []))
+      .catch(err => console.error("Certificates API failed:", err));
+  }, [token]);
 
   const handleExport = (type) => {
-    // Example placeholder: hit endpoint to trigger export
-    axios.get(`http://localhost:8000/api/reports/export/?type=${type}`, {
+    axiosInstance.get(`http://localhost:8000/api/reports/export/?type=${type}`, {
+      headers: { Authorization: `Bearer ${token}` },
       responseType: 'blob'
     }).then(response => {
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -59,7 +69,7 @@ const ReportsPage = () => {
       link.setAttribute('download', `${type}_report.${type === 'pdf' ? 'pdf' : 'xlsx'}`);
       document.body.appendChild(link);
       link.click();
-    });
+    }).catch(err => console.error("Export failed:", err));
   };
 
   return (
@@ -70,11 +80,11 @@ const ReportsPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="bg-white p-4 rounded shadow">
           <h3 className="text-xl font-semibold mb-2">Headcount by Department</h3>
-          <Bar data={headcountData} />
+          {headcountData ? <Bar data={headcountData} /> : <p>Loading chart...</p>}
         </div>
         <div className="bg-white p-4 rounded shadow">
           <h3 className="text-xl font-semibold mb-2">Monthly Attrition Rate</h3>
-          <Pie data={attritionData} />
+          {attritionData ? <Pie data={attritionData} /> : <p>Loading chart...</p>}
         </div>
       </div>
 

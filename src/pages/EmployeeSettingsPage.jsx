@@ -1,120 +1,215 @@
-import React, { useState } from 'react';
-import axios from 'axios';
-import { CheckCircleIcon } from '@heroicons/react/24/outline'; // ✅ optional: heroicons for success icon
+import React, { useState, useContext } from 'react';
+import { CheckCircleIcon, XCircleIcon, MoonIcon, SunIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { ThemeContext } from '../components/ThemeContext';
+import axiosInstance from '../api/axiosInstance';
 
 const EmployeeSettingsPage = () => {
-  const [profileVisible, setProfileVisible] = useState(true);
-  const [notifications, setNotifications] = useState(true);
-  const [language, setLanguage] = useState('en');
+  const { darkMode, setDarkMode } = useContext(ThemeContext);
   const [newPassword, setNewPassword] = useState('');
+  const [oldPassword, setOldPassword] = useState('');
+  const [avatar, setAvatar] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState('');
   const [message, setMessage] = useState('');
   const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const employeeId = localStorage.getItem('employeeId');
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setAvatar(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const handleDeleteAvatar = () => {
+    setAvatar(null);
+    setPreviewUrl('');
+  };
+
+  const handleThemeToggle = () => {
+    setDarkMode(!darkMode);
+  };
 
   const handleSave = async () => {
     try {
-      const payload = {
-        profile_visible: profileVisible,
-        notifications_enabled: notifications,
-        preferred_language: language,
-        password: newPassword
-      };
+      setLoading(true);
+      setMessage('');
+      
+      if (oldPassword && newPassword) {
+        await axiosInstance.post('employees/auth/change-password/', {
+          old_password: oldPassword,
+          new_password: newPassword,
+        });
+        setMessage('Password changed successfully!');
+        setSuccess(true);
+        setOldPassword('');
+        setNewPassword('');
+      }
 
-      await axios.put('http://localhost:8000/api/employee/settings/', payload);
-      setMessage('Settings saved successfully!');
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (error) {
-      console.error(error);
-      setMessage('Failed to save settings.');
+      if (avatar) {
+        const formData = new FormData();
+        formData.append('profile_picture', avatar);
+
+        if (!employeeId) {
+          setMessage('Employee ID not found. Please login again.');
+          setSuccess(false);
+          return;
+        }
+
+        await axiosInstance.patch(
+          `/employees/employees/${employeeId}/`,
+          formData,
+          { headers: { 'Content-Type': 'multipart/form-data' } }
+        );
+        setMessage('Profile picture updated!');
+        setSuccess(true);
+      }
+
+    } catch (err) {
+      console.error(err);
+      setMessage(
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.response?.data?.detail ||
+        'Failed to save changes.'
+      );
       setSuccess(false);
+    } finally {
+      setLoading(false);
+      setTimeout(() => setMessage(''), 5000);
     }
   };
 
   return (
-    <div className="flex items-start justify-center min-h-screen bg-gray-100 py-12 text-gray-800">
-      <div className="w-full max-w-xl bg-white rounded-lg shadow-md p-8 space-y-6 relative">
-        {/* Profile Icon */}
-        <div className="flex justify-center mb-6">
-          <div className="h-20 w-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-2xl font-semibold shadow-inner">
-            👤
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4 transition-colors duration-300">
+     <div className="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden">
+
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 w-full"></div>
+        
+        <div className="p-10 space-y-8">
+          <div className="text-center relative">
+            <button
+              onClick={handleThemeToggle}
+              className="absolute top-0 right-0 p-2 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              title="Toggle theme"
+            >
+              {darkMode ? (
+                <SunIcon className="h-6 w-6 text-yellow-400" />
+              ) : (
+                <MoonIcon className="h-6 w-6 text-gray-600" />
+              )}
+            </button>
           </div>
-        </div>
 
-        <h2 className="text-center text-2xl font-bold">Employee Settings</h2>
+          <div className="text-center">
+            <h2 className="text-3xl font-semibold text-gray-800 dark:text-gray-100">Employee Settings</h2>
+            <p className="text-base text-gray-600 dark:text-gray-400">Manage your preferences and profile</p>
+          </div>
 
-        {/* Profile Visibility */}
-        <div className="flex justify-between items-center">
-          <label className="text-sm font-medium">Make Profile Public</label>
-          <label className="inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              className="sr-only peer"
-              checked={profileVisible}
-              onChange={() => setProfileVisible(!profileVisible)}
-            />
-            <div className="w-11 h-6 bg-gray-300 peer-checked:bg-blue-600 rounded-full relative transition-all duration-300">
-              <div className="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-5"></div>
+          <div className="flex flex-col items-center">
+            {previewUrl ? (
+              <div className="relative group">
+                <img
+                  src={previewUrl}
+                  alt="Avatar"
+                  className="h-24 w-24 rounded-full object-cover border-2 border-blue-500 shadow"
+                />
+                <button
+                  onClick={handleDeleteAvatar}
+                  className="absolute -top-2 -right-2 p-1.5 bg-white dark:bg-gray-700 rounded-full shadow hover:bg-red-600 hover:text-white transition"
+                  title="Remove Avatar"
+                >
+                  <TrashIcon className="h-5 w-5" />
+                </button>
+              </div>
+            ) : (
+              <div className="h-24 w-24 bg-blue-100 dark:bg-blue-300 text-blue-600 rounded-full flex items-center justify-center text-3xl font-semibold shadow-inner">
+                👤
+              </div>
+            )}
+            <label className="mt-4 text-base font-medium text-gray-700 dark:text-gray-300 cursor-pointer hover:underline">
+              Upload Photo
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarChange}
+                className="hidden"
+              />
+            </label>
+          </div>
+
+          <div className="space-y-6">
+            <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-3">
+              Change Password
+            </h3>
+            
+            <div>
+              <label className="block text-base font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Current Password
+              </label>
+              <input
+                type="password"
+                value={oldPassword}
+                onChange={(e) => setOldPassword(e.target.value)}
+                placeholder="Enter current password"
+                className="w-full px-5 py-4 text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-black dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              />
             </div>
-          </label>
-        </div>
-
-        {/* Notifications */}
-        <div className="flex justify-between items-center">
-          <label className="text-sm font-medium">Enable Notifications</label>
-          <label className="inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              className="sr-only peer"
-              checked={notifications}
-              onChange={() => setNotifications(!notifications)}
-            />
-            <div className="w-11 h-6 bg-gray-300 peer-checked:bg-blue-600 rounded-full relative transition-all duration-300">
-              <div className="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-5"></div>
+            
+            <div>
+              <label className="block text-base font-medium text-gray-700 dark:text-gray-300 mb-2">
+                New Password
+              </label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password"
+                className="w-full px-5 py-4 text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-black dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              />
             </div>
-          </label>
-        </div>
+          </div>
 
-        {/* Language Preference */}
-        <div>
-          <label className="block text-sm font-medium mb-1">Preferred Language</label>
-          <select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-            className="w-full px-4 py-2 border rounded"
+          <button
+            onClick={handleSave}
+            disabled={loading}
+            className={`w-full py-4 px-6 text-lg rounded-lg font-medium text-white transition-all ${
+              loading
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transform hover:-translate-y-0.5'
+            }`}
           >
-            <option value="en">English</option>
-            <option value="hi">Hindi</option>
-            <option value="ta">Tamil</option>
-          </select>
+            {loading ? (
+              <span className="flex items-center justify-center">
+                <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Saving Changes...
+              </span>
+            ) : (
+              'Save Changes'
+            )}
+          </button>
+
+          {message && (
+            <div
+              className={`p-4 rounded-lg flex items-center text-base ${
+                success
+                  ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                  : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+              }`}
+            >
+              {success ? (
+                <CheckCircleIcon className="h-6 w-6 mr-3 flex-shrink-0" />
+              ) : (
+                <XCircleIcon className="h-6 w-6 mr-3 flex-shrink-0" />
+              )}
+              <span>{message}</span>
+            </div>
+          )}
         </div>
-
-        {/* Password Update */}
-        <div>
-          <label className="block text-sm font-medium mb-1">Change Password</label>
-          <input
-            type="password"
-            placeholder="New Password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            className="w-full px-4 py-2 border rounded"
-          />
-        </div>
-
-        {/* Save Button */}
-        <button
-          onClick={handleSave}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded transition"
-        >
-          Save Settings
-        </button>
-
-        {/* Message */}
-        {message && (
-          <div className="text-sm text-center mt-2 text-green-600 flex items-center justify-center space-x-2">
-            {success && <CheckCircleIcon className="h-5 w-5 text-green-600" />}
-            <span>{message}</span>
-          </div>
-        )}
       </div>
     </div>
   );

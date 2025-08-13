@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import axiosInstance from '../../api/axiosInstance';
+import LeavePolicy from './LeavePolicy';
 import { 
   BadgeCheck, 
   XCircle, 
@@ -80,7 +81,8 @@ const StatusBadge = ({ status }) => {
 
 // Half Day Badge Component - Enhanced with better styling
 const HalfDayBadge = ({ halfDay, halfDayType }) => {
-  if (!halfDay || halfDayType === null || halfDayType === undefined) return null;
+  if (!halfDay) return null;
+
   const badgeColors = halfDayType === 'FIRST' 
     ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200'
     : 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-200';
@@ -373,6 +375,13 @@ const LeaveRequests = () => {
   const [currentHoliday, setCurrentHoliday] = useState(null);
   const [isSavingHoliday, setIsSavingHoliday] = useState(false);
   const [approvers, setApprovers] = useState([]);
+  const [balanceSearch, setBalanceSearch] = useState('');
+  const [leavePolicies, setLeavePolicies] = useState([]);
+const filteredBalances = leaveBalances.filter(bal => {
+  const searchTerm = balanceSearch.toLowerCase().trim();
+  return bal.employee_name?.toLowerCase().includes(searchTerm);
+});
+
 
   // Status counts for filter badges
   const statusCounts = {
@@ -394,13 +403,24 @@ const LeaveRequests = () => {
           axiosInstance.get('employees/employees/?is_reporting_manager')
         ]);
         
-       // In fetchAllData function
-setLeaveRequests(leaveRes.data.map(request => ({
-  ...request,
-  half_day: request.half_day ?? (request.number_of_days === 0.5),
-  half_day_type: request.half_day_type ?? null // ← No guessing
-})));
+      setLeaveRequests([]);
 
+const leaveList = leaveRes.data;
+
+// Fetch half_day_type for each leave request
+const detailedLeaves = await Promise.all(
+  leaveList.map(async (req) => {
+    try {
+      const detailRes = await axiosInstance.get(`/leave/leaveRequest/${req.id}/`);
+      return { ...req, ...detailRes.data };
+    } catch (err) {
+      console.error(`Error fetching details for leave ${req.id}`, err);
+      return req; // fallback to original data
+    }
+  })
+);
+
+setLeaveRequests(detailedLeaves);
 
 
         setHolidays(holidayRes.data);
@@ -419,20 +439,27 @@ setLeaveRequests(leaveRes.data.map(request => ({
 
   // Filter leave requests based on search and status
   const filterData = useCallback(() => {
-    let filtered = leaveRequests;
+  let filtered = [...leaveRequests];
 
-    if (statusFilter !== 'ALL') {
-      filtered = filtered.filter(req => req.status === statusFilter);
-    }
+  // Filter by status
+  if (statusFilter !== 'ALL') {
+    filtered = filtered.filter(req => req.status === statusFilter);
+  }
 
-    if (search) {
-      filtered = filtered.filter(req =>
-        req.employee_name?.toLowerCase().includes(search.toLowerCase())
-      );
-    }
+  // Filter by search term
+  const searchTerm = search.toLowerCase().trim();
+  if (searchTerm) {
+    filtered = filtered.filter(req => {
+      const firstName = req.employee?.first_name || '';
+      const lastName = req.employee?.last_name || '';
+      const fullName = `${firstName} ${lastName}`.toLowerCase().trim();
+      return fullName.includes(searchTerm);
+    });
+  }
 
-    setFilteredRequests(filtered);
-  }, [leaveRequests, search, statusFilter]);
+  setFilteredRequests(filtered);
+}, [leaveRequests, search, statusFilter]);
+
 
   useEffect(() => {
     filterData();
@@ -459,28 +486,17 @@ setLeaveRequests(leaveRes.data.map(request => ({
   };
 
   // Fetch detailed leave information
-// Fetch detailed leave information
-const fetchLeaveDetails = async (leaveId) => {
-  try {
-    const res = await axiosInstance.get(
-      `/leave/leaveRequest/${leaveId}/?expand=comments,approved_by_employee`
-    );
-
-    setDetailedLeaves(prev => ({
-      ...prev,
-      [leaveId]: res.data
-    }));
-
-    // ✅ Merge details into list so duration & date range update immediately
-    setLeaveRequests(prev =>
-      prev.map(l => l.id === leaveId ? { ...l, ...res.data } : l)
-    );
-  } catch (err) {
-    console.error('Error fetching leave details:', err);
-  }
-};
-
-
+  const fetchLeaveDetails = async (leaveId) => {
+    try {
+      const res = await axiosInstance.get(`/leave/leaveRequest/${leaveId}/?expand=comments,approved_by_employee`);
+      setDetailedLeaves(prev => ({
+        ...prev,
+        [leaveId]: res.data
+      }));
+    } catch (err) {
+      console.error('Error fetching leave details:', err);
+    }
+  };
 
   // Handle date click on calendar
   const handleDateClick = (date) => {
@@ -513,7 +529,8 @@ const fetchLeaveDetails = async (leaveId) => {
     }
   };
 
-const calculateDuration = (startDate, endDate, halfDay, halfDayType) => {
+  // Calculate duration of leave with half-day consideration
+const calculateDuration = (startDate, endDate, halfDay = false, halfDayType = null) => {
   const start = new Date(startDate);
   const end = new Date(endDate);
   
@@ -535,31 +552,35 @@ const calculateDuration = (startDate, endDate, halfDay, halfDayType) => {
   return `${days} day${days !== 1 ? 's' : ''}`;
 };
 
-// Fixed formatDateRange function
 const formatDateRange = (startDate, endDate, halfDay, halfDayType) => {
   const start = new Date(startDate);
   const end = new Date(endDate);
   
-  if (format(start, 'yyyy-MM-dd') === format(end, 'yyyy-MM-dd')) {
+  const startStr = format(start, 'MMM d, yyyy');
+  const endStr = format(end, 'MMM d, yyyy');
+  
+  if (startStr === endStr) {
     // Single day leave
     return halfDay 
-      ? `${format(start, 'MMM d, yyyy')} (${halfDayType === 'FIRST' ? 'First Half' : 'Second Half'})`
-      : format(start, 'MMM d, yyyy');
+      ? `${startStr} (${halfDayType === 'FIRST' ? 'First Half' : 'Second Half'})`
+      : startStr;
   }
   
   // Multi-day leave
-  let formatted = `${format(start, 'MMM d')} - ${format(end, 'MMM d, yyyy')}`;
+  const formattedStart = format(start, 'MMM d');
+  const formattedEnd = format(end, 'MMM d, yyyy');
   
   if (halfDay) {
     if (halfDayType === 'FIRST') {
-      formatted = `${format(start, 'MMM d')} (First Half) - ${format(end, 'MMM d, yyyy')}`;
+      return `${formattedStart} (First Half) - ${formattedEnd}`;
     } else if (halfDayType === 'SECOND') {
-      formatted = `${format(start, 'MMM d')} - ${format(end, 'MMM d, yyyy')} (Second Half)`;
+      return `${formattedStart} - ${formattedEnd} (Second Half)`;
     }
   }
   
-  return formatted;
+  return `${formattedStart} - ${formattedEnd}`;
 };
+
 
   // Add comment to leave request
   const handleAddComment = async (leaveId) => {
@@ -621,19 +642,19 @@ const formatDateRange = (startDate, endDate, halfDay, halfDayType) => {
     } else if (leavesOnDate.length > 0) {
       // Check if this is a half day
       const isHalfDay = leavesOnDate.some(leave => {
-  const isStartDate = format(new Date(leave.start_date), 'yyyy-MM-dd') === dStr;
-  const isEndDate = format(new Date(leave.end_date), 'yyyy-MM-dd') === dStr;
-  const isSameDay = isStartDate && isEndDate;
-
-  if (leave.half_day) {
-    if (isSameDay) return true; // Same-day half-day
-    if (isStartDate && leave.half_day_type === 'FIRST') return true;
-    if (isEndDate && leave.half_day_type === 'SECOND') return true;
-  }
-
-  return false;
-});
-
+        const isStartDate = format(new Date(leave.start_date), 'yyyy-MM-dd') === dStr;
+        const isEndDate = format(new Date(leave.end_date), 'yyyy-MM-dd') === dStr;
+        
+        if (leave.half_day) {
+          if (isStartDate && leave.half_day_type === 'FIRST') {
+            return true;
+          }
+          if (isEndDate && leave.half_day_type === 'SECOND') {
+            return true;
+          }
+        }
+        return false;
+      });
 
       if (isHalfDay) {
         classes += ' bg-gradient-to-br from-purple-50 to-amber-50 dark:from-purple-900/20 dark:to-amber-900/20';
@@ -662,18 +683,19 @@ const formatDateRange = (startDate, endDate, halfDay, halfDayType) => {
 
       // Check for half-day leaves
       const halfDayLeaves = leavesOnDate.filter(leave => {
-  const isStartDate = format(new Date(leave.start_date), 'yyyy-MM-dd') === dStr; // ✅ Correct
-  const isEndDate = format(new Date(leave.end_date), 'yyyy-MM-dd') === dStr;
-  const isSameDay = isStartDate && isEndDate;
-
-  if (leave.half_day) {
-    if (isSameDay) return true;
-    if (isStartDate && leave.half_day_type === 'FIRST') return true;
-    if (isEndDate && leave.half_day_type === 'SECOND') return true;
-  }
-  return false;
-});
-
+        const isStartDate = format(new Date(leave.start_date), 'yyyy-MM-dd') === dStr;
+        const isEndDate = format(new Date(leave.end_date), 'yyyy-MM-dd') === dStr;
+        
+        if (leave.half_day) {
+          if (isStartDate && leave.half_day_type === 'FIRST') {
+            return true;
+          }
+          if (isEndDate && leave.half_day_type === 'SECOND') {
+            return true;
+          }
+        }
+        return false;
+      });
 
       return (
         <div className="absolute top-0 left-0 right-0 bottom-0 flex flex-col items-center justify-end pb-1">
@@ -701,7 +723,7 @@ const formatDateRange = (startDate, endDate, halfDay, halfDayType) => {
     try {
       if (currentHoliday) {
         // Update existing holiday
-        await axiosInstance.put(`leave/Holiday/${currentHoliday.id}/`, holidayData);
+        await axiosInstance.put(`leave/Holiday/${currentHoliday.id}/, holidayData`);
         setHolidays(holidays.map(h => h.id === currentHoliday.id ? {...h, ...holidayData} : h));
       } else {
         // Create new holiday
@@ -785,6 +807,16 @@ const formatDateRange = (startDate, endDate, halfDay, halfDayType) => {
             }`}
           >
             Holidays
+          </button>
+           <button
+            onClick={() => setActiveTab('policy')}
+            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'policy'
+                ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+            }`}
+          >
+            Leave Policy
           </button>
         </nav>
       </div>
@@ -921,33 +953,24 @@ const formatDateRange = (startDate, endDate, halfDay, halfDayType) => {
                             </div>
                             <div>
                               <h3 className="font-semibold text-gray-800 dark:text-white">{request.employee_name}</h3>
-                            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-  <span>
-    {formatDateRange(
-      request.start_date, 
-      request.end_date, 
-      request.half_day, 
-      request.half_day_type
-    )}
-  </span>
-  <div className="flex flex-col gap-1 text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-    <span>
-      {calculateDuration(
-        request.start_date, 
-        request.end_date, 
-        request.half_day, 
-        request.half_day_type
-      )}
-    </span>
-    {request.half_day && request.half_day_type && (
-  <HalfDayBadge 
-    halfDay={request.half_day} 
-    halfDayType={request.half_day_type} 
-  />
-)}
-
-  </div>
-</div>
+                              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                <span>
+                                  {formatDateRange(
+                                    request.start_date, 
+                                    request.end_date, 
+                                    request.half_day, 
+                                    request.half_day_type
+                                  )}
+                                </span>
+                                <span className="text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">
+                                  {calculateDuration(
+                                    request.start_date, 
+                                    request.end_date, 
+                                    request.half_day, 
+                                    request.half_day_type
+                                  )}
+                                </span>
+                              </div>
                             </div>
                           </div>
                           <div className="flex items-center gap-4">
@@ -986,12 +1009,12 @@ const formatDateRange = (startDate, endDate, halfDay, halfDayType) => {
                                       request.half_day_type
                                     )}
                                   </p>
-                                  {request.half_day && (
-                                    <HalfDayBadge 
-                                      halfDay={request.half_day} 
-                                      halfDayType={request.half_day_type} 
-                                    />
-                                  )}
+                                  {request.half_day && request.half_day_type && (
+  <HalfDayBadge 
+    halfDay={request.half_day} 
+    halfDayType={request.half_day_type} 
+  />
+)}
                                 </div>
                               </div>
                               <div>
@@ -1114,10 +1137,13 @@ const formatDateRange = (startDate, endDate, halfDay, halfDayType) => {
                       <Search className="text-gray-400" size={18} />
                     </div>
                     <input
-                      type="text"
-                      placeholder="Search by employee..."
-                      className="pl-10 border border-gray-300 dark:border-gray-600 px-4 py-2 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-all duration-200"
-                    />
+  type="text"
+  placeholder="Search by employee..."
+  value={balanceSearch}
+  onChange={(e) => setBalanceSearch(e.target.value)}
+  className="pl-10 border border-gray-300 dark:border-gray-600 px-4 py-2 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-all duration-200"
+/>
+
                   </div>
                 </div>
               </div>
@@ -1149,10 +1175,10 @@ const formatDateRange = (startDate, endDate, halfDay, halfDayType) => {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                    {leaveBalances.length > 0 ? (
-                      leaveBalances.map((balance) => (
-                        <tr key={balance.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+<tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+  {filteredBalances.length > 0 ? (
+    filteredBalances.map((balance) => (  // Changed from leaveBalances to filteredBalances
+      <tr key={balance.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                             {balance.employee_name}
                           </td>
@@ -1206,7 +1232,7 @@ const formatDateRange = (startDate, endDate, halfDay, halfDayType) => {
                   }}
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors flex items-center gap-2"
                 >
-                  <Plus size={16} /> Add Holiday
+                  <Plus size={16}/> Add Holiday
                 </button>
               </div>
 
@@ -1373,6 +1399,17 @@ const formatDateRange = (startDate, endDate, halfDay, halfDayType) => {
               </div>
             </div>
           </Modal>
+
+           {activeTab === 'policy' && (
+            // <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-md">
+
+              <LeavePolicy/>
+
+
+            // </div>
+          )}
+
+          
 
           {/* Approve/Reject Modal */}
           <ApproveRejectModal

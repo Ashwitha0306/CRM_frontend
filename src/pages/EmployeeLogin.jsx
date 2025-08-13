@@ -1,61 +1,64 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import axiosInstance from '../api/axiosInstance';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-const Login = () => {
-  const [email, setEmail] = useState('');
+const EmployeeLogin = () => {
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
+    setLoading(true);
+    setError('');
 
     try {
-      const response = await axios.post('https://genhub-crm.onrender.com/api/admin/login/', {
-        email,
+      const response = await axiosInstance.post('/employees/login/', {
+        email:username,
         password,
       });
-      const { access_token, refresh_token } = response.data;
+
+      const { access_token, refresh_token, employee_id, role } = response.data;
+
       localStorage.setItem('access', access_token);
       localStorage.setItem('refresh', refresh_token);
+      localStorage.setItem('employeeId', employee_id);
+      localStorage.setItem('role', role);
 
-      toast.success('Login Successful 🎉', {
+      toast.success('Login Successful!', {
         position: 'top-center',
         autoClose: 1500,
         theme: 'colored',
       });
-      setTimeout(() => navigate('/admin/dashboard'), 1600);
+
+      setTimeout(() => navigate(`/employees/employees/${employee_id}`), 1600);
     } catch (err) {
-      toast.error(
-        err.response?.status === 401
-          ? 'Invalid email or password ❌'
-          : 'Server error. Try again later.',
-        {
-          position: 'top-center',
-          autoClose: 2000,
-          theme: 'dark',
-        }
-      );
+      console.error('Login error:', err);
+      const errorMessage = err.response?.status === 401 
+        ? 'Invalid credentials. Please check your username and password.'
+        : 'Something went wrong. Please try again later.';
+      setError(errorMessage);
+      toast.error(errorMessage, {
+        position: 'top-center',
+        autoClose: 3000,
+        theme: 'dark',
+      });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const handleForgotPassword = () => {
-    navigate('/forgot-password');
-  };
-
-  const goToEmployeeLogin = () => {
-    navigate('/employees/login');
+  const goToAdminLogin = () => {
+    navigate('/');
   };
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-b from-[#0f172a] to-[#1e293b] overflow-hidden">
-      {/* Enhanced full-page wave background */}
+   <div className="relative min-h-screen bg-gradient-to-b from-[#0f172a] to-[#1e293b] overflow-hidden">
+     {/* Enhanced wave background */}
       <div className="absolute inset-0 z-0">
         {/* Primary wave */}
         <div className="absolute bottom-0 left-0 w-full h-1/3 opacity-30">
@@ -105,44 +108,50 @@ const Login = () => {
       <ToastContainer />
 
       <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
-        <div className="w-full max-w-sm"> {/* Reduced from max-w-md */}
-          <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 hover:shadow-indigo-500/20">
-            <div className="p-6"> {/* Reduced from p-8 */}
-              <div className="text-center mb-6"> {/* Reduced from mb-8 */}
+        <div className="w-full max-w-sm"> {/* Changed from max-w-md to max-w-sm */}
+          <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 hover:shadow-blue-500/20">
+            <div className="p-6"> {/* Reduced padding from p-8 to p-6 */}
+              <div className="text-center mb-6"> {/* Reduced margin from mb-8 to mb-6 */}
                 <div className="relative inline-block">
-                  <img
+                 <img
                     src="/logo.jpeg"
                     alt="Logo"
                     className="w-16 h-16 mx-auto rounded-full border-4 border-indigo-600 shadow-lg" 
                   />
-                  <div className="absolute -inset-2 rounded-full border-2 border-white/20 animate-ping-slow pointer-events-none"></div>
+                  <div className="absolute -inset-2 rounded-full border-2 border-blue-300/30 animate-ping-slow pointer-events-none"></div>
                 </div>
-                <h2 className="text-xl font-bold mt-4 text-white"> {/* Reduced size and margin */}
-                  Admin Login
+                <h2 className="text-xl font-bold mt-4 text-white"> {/* Reduced text size and margin */}
+                  Employee Portal
                 </h2>
-                <p className="text-xs text-white/80 mt-1"> {/* Smaller text */}
-                  Sign in to your dashboard
+                <p className="text-xs text-blue-100/80 mt-1"> {/* Reduced text size */}
+                  Sign in to access your dashboard
                 </p>
               </div>
 
+              {error && (
+                <div className="mb-4 p-3 bg-red-500/20 text-red-100 rounded-lg text-sm"> {/* Reduced margin */}
+                  {error}
+                </div>
+              )}
+
               <form onSubmit={handleLogin} className="space-y-4"> {/* Reduced spacing */}
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-white/80 mb-1">
-                    Email Address
+                  <label htmlFor="username" className="block text-sm font-medium text-white/80 mb-1">
+                    Username
                   </label>
                   <div className="relative">
                     <input
-                      id="email"
-                      type="email"
-                      placeholder="you@company.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      id="username"
+                      type="text"
+                      placeholder="Enter your username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
                       required
-                      className="w-full px-4 py-2 rounded-lg bg-white/10 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-indigo-500 border border-white/20 transition-all duration-200" 
                     />
                     <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                      <svg className="h-5 w-5 text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      <svg className="h-5 w-5 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                       </svg>
                     </div>
                   </div>
@@ -156,15 +165,15 @@ const Login = () => {
                     <input
                       id="password"
                       type="password"
-                      placeholder="••••••••"
+                      placeholder="Enter your password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition" 
                       required
-                      className="w-full px-4 py-2 rounded-lg bg-white/10 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-indigo-500 border border-white/20 transition-all duration-200" 
                     />
                     <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                       <svg className="h-5 w-5 text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
                       </svg>
                     </div>
                   </div>
@@ -176,7 +185,7 @@ const Login = () => {
                       id="remember-me"
                       name="remember-me"
                       type="checkbox"
-                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-white/30 rounded bg-white/10"
+                      className="h-4 w-4 text-blue-500 focus:ring-blue-400 border-blue-300/50 rounded bg-white/10"
                     />
                     <label htmlFor="remember-me" className="ml-2 block text-sm text-white/70">
                       Remember me
@@ -185,8 +194,7 @@ const Login = () => {
 
                   <button
                     type="button"
-                    onClick={handleForgotPassword}
-                    className="text-xs font-medium text-indigo-300 hover:text-indigo-200 transition-colors duration-200" 
+                    className="text-sm font-medium text-blue-200 hover:text-blue-100 transition-colors duration-200"
                   >
                     Forgot password?
                   </button>
@@ -194,43 +202,40 @@ const Login = () => {
 
                 <button
                   type="submit"
-                  disabled={isLoading}
+                  disabled={loading}
                   className={`w-full py-3 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center relative overflow-hidden ${
-                    isLoading
-                      ? 'bg-indigo-700 cursor-not-allowed'
-                      : 'bg-indigo-600 hover:bg-indigo-700 shadow-lg hover:shadow-indigo-500/30'
+                    loading
+                      ? 'bg-blue-700/80 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 shadow-lg hover:shadow-blue-500/30'
                   }`}
                 >
-                  {isLoading ? (
+                  {loading ? (
                     <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> {/* Smaller spinner */}
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Authenticating...
+                      Signing in...
                     </>
                   ) : (
-                    'Sign In'
+                    'Sign in'
                   )}
                 </button>
               </form>
 
               <div className="mt-4 text-center"> {/* Reduced margin */}
                 <button
-                  onClick={goToEmployeeLogin}
-                  className="text-xs font-medium bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors duration-200 inline-flex items-center text-white" 
+                  onClick={goToAdminLogin}
+                  className="text-xs font-medium bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg transition-colors duration-200 inline-flex items-center text-white" 
                 >
-                  <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"> {/* Smaller icon */}
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
-                  Employee Login
+                  Admin Login
                 </button>
               </div>
             </div>
-          </div>
-
-          <div className="mt-4 text-center text-xs text-white/50"> {/* Smaller footer */}
-            <p>© {new Date().getFullYear()} LivePresence. All rights reserved.</p>
           </div>
         </div>
       </div>
@@ -271,4 +276,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default EmployeeLogin;

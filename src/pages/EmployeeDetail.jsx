@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios'; // ✅
+import axiosInstance from '../api/axiosInstance';
 
 import { useParams } from 'react-router-dom';
 import Tabs from '../components/Tabs';
@@ -9,7 +9,7 @@ const EmployeeDetail = () => {
   const [employee, setEmployee] = useState(null);
 
   useEffect(() => {
-    axios.get(`/api/employees/${id}/`).then(res => setEmployee(res.data));
+    axiosInstance.get(`/employees/employee/c63ead8e-5192-498c-863f-7f193e11ae17/`,{headers: {Authorization: `Bearer ${localStorage.getItem('access')}` }}).then(res => setEmployee(res.data));
   }, [id]);
 
   if (!employee) return <div className="p-6">Loading...</div>;
@@ -23,7 +23,7 @@ const EmployeeDetail = () => {
             label: 'Personal Info',
             content: (
               <div>
-                <p>Email: {employee.email}</p>
+                <p>EEMAIL {employee.email}</p>
                 <p>Contact: {employee.contact}</p>
               </div>
             )
