@@ -460,7 +460,7 @@ useEffect(() => {
                           <FiCheckCircle className="h-3 w-3" /> Complete
                         </motion.button>
                       )}
-                      {task.status !== 'completed' && task.status !== 'cancelled' && (
+                      {task.status !== 'completed' && task.status !== 'cancelled' && task.status!=='pending_approval' &&(
                         !activeLog ? (
                           <motion.button
                             whileHover={{ scale: 1.05 }}

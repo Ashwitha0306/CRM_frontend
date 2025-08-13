@@ -128,7 +128,7 @@ const Login = () => {
               <form onSubmit={handleLogin} className="space-y-4"> {/* Reduced spacing */}
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-white/80 mb-1">
-                    Email Address
+                    Email 
                   </label>
                   <div className="relative">
                     <input

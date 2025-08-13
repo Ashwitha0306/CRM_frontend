@@ -35,7 +35,7 @@ const EmployeeDashboard = () => {
     completed: 0,
     inProgress: 0,
     pendingReview: 0,
-    overdue: 0
+    cancelled: 0
   });
   const [reportees, setReportees] = useState([]);
   const [upcomingTasks, setUpcomingTasks] = useState([]);
@@ -43,61 +43,55 @@ const EmployeeDashboard = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [activeTab, setActiveTab] = useState('overview');
 
-  const refreshData = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const [employeeRes, tasksRes, reporteesRes, attendanceRes] = await Promise.all([
-        axiosInstance.get(`employees/employees/${employeeId}/`),
-        axiosInstance.get(`boarding/tasks/?assignee=${employeeId}`),
-        axiosInstance.get(`employees/employees/${employeeId}/team/`),
-        axiosInstance.get(`employees/attendance/?employee_id=${employeeId}`)
-      ]);
+const refreshData = async () => {
+  setLoading(true);
+  setError('');
+  try {
+    const [employeeRes, tasksRes, reporteesRes, attendanceRes] = await Promise.all([
+      axiosInstance.get(`employees/employees/${employeeId}/`),
+      axiosInstance.get(`boarding/tasks/?assignee=${employeeId}`),
+      axiosInstance.get(`employees/employees/${employeeId}/team/`),
+      axiosInstance.get(`employees/attendance/?employee_id=${employeeId}`)
+    ]);
 
-      setEmployee(employeeRes.data);
-      setLastUpdated(new Date());
-      setAttendanceRecords(attendanceRes.data);
+    setEmployee(employeeRes.data);
+    setLastUpdated(new Date());
+    setAttendanceRecords(attendanceRes.data);
 
-      // Process tasks
-      const myTasks = tasksRes.data.filter(
-        task => String(task.assignee || task.assigned_to) === String(employeeId)
-      );
+    // Calculate task summary counts
+    const allTasks = tasksRes.data;
+    const summary = {
+      completed: allTasks.filter(t => t.status?.toLowerCase() === 'completed').length,
+      inProgress: allTasks.filter(t => t.status?.toLowerCase() === 'in_progress').length,
+      pendingReview: allTasks.filter(t => t.status?.toLowerCase() === 'pending_approval').length,
+      cancelled: allTasks.filter(t => t.status?.toLowerCase() === 'cancelled').length
+    };
+    setTaskSummary(summary);
 
-      // Task summary
-      const summary = { completed: 0, inProgress: 0, pendingReview: 0, overdue: 0 };
-      const now = dayjs();
-      
-      myTasks.forEach((task) => {
-        const status = task.status?.toLowerCase();
-        if (status === 'completed') summary.completed++;
-        else if (status === 'in_progress') summary.inProgress++;
-        else if (status === 'pending_approval') summary.pendingReview++;
-        
-        // Check for overdue tasks
-        if (task.due_date && dayjs(task.due_date).isBefore(now)) {
-          summary.overdue++;
-        }
-      });
-      setTaskSummary(summary);
+    // Upcoming tasks (within next 7 days, not completed)
+    const now = dayjs();
+    const nextWeek = now.add(7, 'day');
+    const upcoming = allTasks
+      .filter(task =>
+        task.due_date &&
+        dayjs(task.due_date).isAfter(now) &&
+        dayjs(task.due_date).isBefore(nextWeek) &&
+        task.status?.toLowerCase() !== 'completed'
+      )
+      .sort((a, b) => dayjs(a.due_date) - dayjs(b.due_date));
 
-      // Upcoming deadlines
-      const nextWeek = now.add(7, 'day');
-      const upcoming = myTasks.filter(task => {
-        return task.due_date && dayjs(task.due_date).isAfter(now) && dayjs(task.due_date).isBefore(nextWeek)&&task.status?.toLowerCase() !== 'completed';
+    setUpcomingTasks(upcoming);
 
-      }).sort((a, b) => dayjs(a.due_date) - dayjs(b.due_date));
+    // Reportees
+    setReportees(reporteesRes.data);
 
-      setUpcomingTasks(upcoming);
-
-      // Reportees
-      setReportees(reporteesRes.data);
-    } catch (err) {
-      console.error('Failed to refresh data:', err);
-      setError('Unable to refresh data. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (err) {
+    console.error('Failed to refresh data:', err);
+    setError('Unable to refresh data. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     refreshData();
@@ -230,13 +224,13 @@ const EmployeeDashboard = () => {
               trend: taskSummary.pendingReview > 0 ? 'up' : 'neutral'
             },
             {
-              label: 'Overdue',
-              value: taskSummary.overdue,
+              label: 'Cancelled',
+              value: taskSummary.cancelled,
               icon: <FiCalendar className="text-xl" />,
       bg: 'bg-red-50 dark:bg-red-700',
       border: 'border-red-200 dark:border-red-600',
       text: 'text-black dark:text-white',
-              trend: taskSummary.overdue > 0 ? 'down' : 'neutral'
+              trend: taskSummary.cancelled > 0 ? 'down' : 'neutral'
             }
           ].map(({ label, value, icon, bg, text, border, trend }, index) => (
             <motion.div

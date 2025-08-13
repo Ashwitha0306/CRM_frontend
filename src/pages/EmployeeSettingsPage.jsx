@@ -2,6 +2,8 @@ import React, { useState, useContext } from 'react';
 import { CheckCircleIcon, XCircleIcon, MoonIcon, SunIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { ThemeContext } from '../components/ThemeContext';
 import axiosInstance from '../api/axiosInstance';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const EmployeeSettingsPage = () => {
   const { darkMode, setDarkMode } = useContext(ThemeContext);
@@ -31,58 +33,86 @@ const EmployeeSettingsPage = () => {
     setDarkMode(!darkMode);
   };
 
-  const handleSave = async () => {
-    try {
-      setLoading(true);
-      setMessage('');
+const handleSave = async () => {
+  try {
+    setLoading(true);
+    let passwordChanged = false;
+
+    if (oldPassword && newPassword) {
+      await axiosInstance.post('employees/auth/change-password/', {
+        old_password: oldPassword,
+        new_password: newPassword,
+      });
       
-      if (oldPassword && newPassword) {
-        await axiosInstance.post('employees/auth/change-password/', {
-          old_password: oldPassword,
-          new_password: newPassword,
-        });
-        setMessage('Password changed successfully!');
-        setSuccess(true);
-        setOldPassword('');
-        setNewPassword('');
-      }
-
-      if (avatar) {
-        const formData = new FormData();
-        formData.append('profile_picture', avatar);
-
-        if (!employeeId) {
-          setMessage('Employee ID not found. Please login again.');
-          setSuccess(false);
-          return;
-        }
-
-        await axiosInstance.patch(
-          `/employees/employees/${employeeId}/`,
-          formData,
-          { headers: { 'Content-Type': 'multipart/form-data' } }
-        );
-        setMessage('Profile picture updated!');
-        setSuccess(true);
-      }
-
-    } catch (err) {
-      console.error(err);
-      setMessage(
-        err.response?.data?.message ||
-        err.response?.data?.error ||
-        err.response?.data?.detail ||
-        'Failed to save changes.'
-      );
-      setSuccess(false);
-    } finally {
-      setLoading(false);
-      setTimeout(() => setMessage(''), 5000);
+      toast.success('Password changed successfully! Please login again.', {
+        autoClose: 3000,
+      });
+      
+      passwordChanged = true;
     }
-  };
+
+    if (avatar) {
+      const formData = new FormData();
+      formData.append('profile_picture', avatar);
+
+      if (!employeeId) {
+        toast.error('Employee ID not found. Please login again.', {
+          autoClose: 3000,
+        });
+        return;
+      }
+
+      await axiosInstance.patch(
+        `/employees/employees/${employeeId}/`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+      
+      toast.success('Profile picture updated!', {
+        autoClose: 3000,
+      });
+    }
+
+    // Logout if password was changed
+    if (passwordChanged) {
+      setTimeout(() => {
+        localStorage.clear();
+        window.location.href = '/employees/login';
+      }, 3000);
+    }
+
+  } catch (err) {
+    console.error(err);
+    
+    const errorMessage = 
+      err.response?.data?.message ||
+      err.response?.data?.error ||
+      err.response?.data?.detail ||
+      'Failed to save changes.';
+    
+    toast.error(errorMessage, {
+      autoClose: 5000,
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4 transition-colors duration-300">
+         {/* Add ToastContainer here */}
+    <ToastContainer 
+      position="top-right"
+      autoClose={5000}
+      hideProgressBar={false}
+      newestOnTop
+      closeOnClick
+      rtl={false}
+      pauseOnFocusLoss
+      draggable
+      pauseOnHover
+      theme={darkMode ? "dark" : "light"}
+    />
      <div className="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden">
 
         <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 w-full"></div>
@@ -193,22 +223,7 @@ const EmployeeSettingsPage = () => {
             )}
           </button>
 
-          {message && (
-            <div
-              className={`p-4 rounded-lg flex items-center text-base ${
-                success
-                  ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                  : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-              }`}
-            >
-              {success ? (
-                <CheckCircleIcon className="h-6 w-6 mr-3 flex-shrink-0" />
-              ) : (
-                <XCircleIcon className="h-6 w-6 mr-3 flex-shrink-0" />
-              )}
-              <span>{message}</span>
-            </div>
-          )}
+        
         </div>
       </div>
     </div>

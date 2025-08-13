@@ -20,7 +20,7 @@ const TaskManager = () => {
     description: '',
     department: '',
     assignee: '',
-    deadline: '',
+    due_date: '',
     priority: 'medium',
     status: 'not_started',
     order: 0,
@@ -192,7 +192,7 @@ const TaskManager = () => {
         description: '',
         department: '',
         assignee: '',
-        deadline: '',
+        due_date: '',
         priority: 'medium',
         status: 'not_started',
         order: 0,
@@ -556,8 +556,8 @@ const TaskManager = () => {
               <label className={`block mb-1 ${getThemeClasses.textSecondary}`}>Deadline</label>
               <input 
                 type="date" 
-                name="deadline" 
-                value={formData.deadline} 
+                name="due_date" 
+                value={formData.due_date} 
                 onChange={handleChange} 
                 className={`w-full p-2 border rounded ${getThemeClasses.input}`} 
               />
@@ -724,7 +724,7 @@ const TaskManager = () => {
                         </span>
                       </td>
                       <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode() ? 'text-gray-300' : 'text-gray-500'}`}>
-                        {task.deadline ? new Date(task.deadline).toLocaleDateString() : '-'}
+                        {task.due_date ? new Date(task.due_date).toLocaleDateString() : '-'}
                       </td>
                     </tr>
                   ))}

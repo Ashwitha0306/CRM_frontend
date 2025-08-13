@@ -141,7 +141,7 @@ const EmployeeLogin = () => {
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
                   <label htmlFor="username" className="block text-sm font-medium text-white/80 mb-1">
-                    Username
+                    Email
                   </label>
                   <div className="relative">
                     <input
