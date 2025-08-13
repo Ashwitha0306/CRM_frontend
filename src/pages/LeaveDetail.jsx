@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axiosInstance from '../api/axiosInstance';
-import { motion, AnimatePresence } from 'framer-motion';
-import {  LoadingOutlined } from '@ant-design/icons';
+
 const LeaveDetail = () => {
   const { leaveId } = useParams();
   const navigate = useNavigate();
@@ -34,7 +33,7 @@ const LeaveDetail = () => {
 
     try {
       if (editingCommentId) {
-        await axiosInstance.patch(`/leave/leaveCommen/${editingCommentId}/`, { comment: commentText });
+        await axiosInstance.patch(`/leave/comment/${editingCommentId}/`, { comment: commentText });
         alert('✅ Comment updated!');
       } else {
         await axiosInstance.post(`/leave/leaveRequest/${leaveId}/add_comment/`, {
@@ -66,17 +65,17 @@ const LeaveDetail = () => {
     }
   };
 
-if (loading) {
+  if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-white dark:bg-gray-900 text-center space-y-4">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-        >
-          <LoadingOutlined className="text-4xl text-blue-600 dark:text-blue-400" />
-        </motion.div>
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-8 h-8 bg-teal-500 rounded-full animate-ping"></div>
+          </div>
+        </div>
         <p className="text-lg font-medium text-gray-600 dark:text-gray-300">
-          Loading your Leave Detail...
+          Loading Leave Details...
         </p>
       </div>
     );

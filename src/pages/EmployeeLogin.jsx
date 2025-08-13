@@ -18,7 +18,7 @@ const EmployeeLogin = () => {
 
     try {
       const response = await axiosInstance.post('/employees/login/', {
-        email:username,
+        email: username,
         password,
       });
 
@@ -56,9 +56,13 @@ const EmployeeLogin = () => {
     navigate('/');
   };
 
+  const goToForgotPassword = () => {
+    navigate('/forgot-password');
+  };
+
   return (
-   <div className="relative min-h-screen bg-gradient-to-b from-[#0f172a] to-[#1e293b] overflow-hidden">
-     {/* Enhanced wave background */}
+    <div className="relative min-h-screen bg-gradient-to-b from-[#0f172a] to-[#1e293b] overflow-hidden">
+      {/* Enhanced wave background */}
       <div className="absolute inset-0 z-0">
         {/* Primary wave */}
         <div className="absolute bottom-0 left-0 w-full h-1/3 opacity-30">
@@ -108,33 +112,33 @@ const EmployeeLogin = () => {
       <ToastContainer />
 
       <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
-        <div className="w-full max-w-sm"> {/* Changed from max-w-md to max-w-sm */}
+        <div className="w-full max-w-sm">
           <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 hover:shadow-blue-500/20">
-            <div className="p-6"> {/* Reduced padding from p-8 to p-6 */}
-              <div className="text-center mb-6"> {/* Reduced margin from mb-8 to mb-6 */}
+            <div className="p-6">
+              <div className="text-center mb-6">
                 <div className="relative inline-block">
-                 <img
+                  <img
                     src="/logo.jpeg"
                     alt="Logo"
                     className="w-16 h-16 mx-auto rounded-full border-4 border-indigo-600 shadow-lg" 
                   />
                   <div className="absolute -inset-2 rounded-full border-2 border-blue-300/30 animate-ping-slow pointer-events-none"></div>
                 </div>
-                <h2 className="text-xl font-bold mt-4 text-white"> {/* Reduced text size and margin */}
+                <h2 className="text-xl font-bold mt-4 text-white">
                   Employee Portal
                 </h2>
-                <p className="text-xs text-blue-100/80 mt-1"> {/* Reduced text size */}
+                <p className="text-xs text-blue-100/80 mt-1">
                   Sign in to access your dashboard
                 </p>
               </div>
 
               {error && (
-                <div className="mb-4 p-3 bg-red-500/20 text-red-100 rounded-lg text-sm"> {/* Reduced margin */}
+                <div className="mb-4 p-3 bg-red-500/20 text-red-100 rounded-lg text-sm">
                   {error}
                 </div>
               )}
 
-              <form onSubmit={handleLogin} className="space-y-4"> {/* Reduced spacing */}
+              <form onSubmit={handleLogin} className="space-y-4">
                 <div>
                   <label htmlFor="username" className="block text-sm font-medium text-white/80 mb-1">
                     Username
@@ -194,6 +198,7 @@ const EmployeeLogin = () => {
 
                   <button
                     type="button"
+                    onClick={goToForgotPassword}
                     className="text-sm font-medium text-blue-200 hover:text-blue-100 transition-colors duration-200"
                   >
                     Forgot password?
@@ -223,7 +228,7 @@ const EmployeeLogin = () => {
                 </button>
               </form>
 
-              <div className="mt-4 text-center"> {/* Reduced margin */}
+              <div className="mt-4 text-center">
                 <button
                   onClick={goToAdminLogin}
                   className="text-xs font-medium bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg transition-colors duration-200 inline-flex items-center text-white" 
