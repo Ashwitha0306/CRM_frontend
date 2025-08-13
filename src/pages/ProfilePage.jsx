@@ -1,4 +1,6 @@
 import React, { useState, useEffect,useCallback } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import axiosInstance from '../api/axiosInstance';
 import {
   StarIcon as SolidStarIcon,
@@ -38,6 +40,26 @@ import DocumentCard from '../components/DocumentCard.jsx';
 import DocumentUploadForm from '../components/DocumentUploadForm';
 import { StarIcon as OutlineStarIcon } from '@heroicons/react/24/outline';
 const API_BASE_URL = '/employees';
+  const showToast = (message, type = 'success') => {
+  const toastOptions = {
+    position: "top-right",
+    autoClose: 5000,
+    hideProgressBar: false,
+    closeOnClick: true,
+    pauseOnHover: true,
+    draggable: true,
+    progress: undefined,
+  };
+
+  if (type === 'success') {
+    toast.success(message, toastOptions);
+  } else if (type === 'error') {
+    toast.error(message, toastOptions);
+  } else if (type === 'info') {
+    toast.info(message, toastOptions);
+  }
+};
+
 
 const DefaultAvatar = ({ firstName, lastName, className }) => {
   const initials = `${firstName?.[0] || ''}${lastName?.[0] || ''}` || 'US';
@@ -77,6 +99,7 @@ const EducationPopup = ({ education, onClose, onSave, onDelete, mode = 'edit' })
       [name]: type === 'checkbox' ? checked : value
     }));
   };
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
@@ -672,10 +695,10 @@ const handleBioUpdate = async () => {
     });
     setEmployeeBio(editedBio);
     setIsEditingBio(false);
-    alert('✅ Bio updated successfully!');
+  showToast('Bio updated successfully!');
   } catch (err) {
     console.error('Error updating bio:', err);
-    alert('❌ Failed to update bio.');
+   showToast('Failed to update bio.', 'error');
   }
 };
 
@@ -686,7 +709,7 @@ const handleBioUpdate = async () => {
       const filePath = res.data.file;
 
       if (!filePath) {
-        alert('File not available');
+        showToast('File not available');
         return;
       }
 
@@ -708,7 +731,7 @@ const handleBioUpdate = async () => {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Download failed:', err);
-      alert('Download failed.');
+      showToast('Download failed.');
     }
   };
 
@@ -739,14 +762,14 @@ const handleBioUpdate = async () => {
     if (documentFormData.file instanceof File) {
       formData.append("file", documentFormData.file);
     } else {
-      alert("Please choose a valid file before submitting.");
+      showToast("Please choose a valid file before submitting.");
       return;
     }
 
     formData.append("requires_signature", documentFormData.requires_signature ? "true" : "false");
 
     if (!employeeId) {
-      alert("Employee ID missing.");
+      showToast("Employee ID missing.");
       return;
     }
     formData.append("employee", employeeId);
@@ -791,14 +814,14 @@ const handleBioUpdate = async () => {
       });
 
       setShowDocumentModal(false);
-      alert(documentFormData.requires_signature
+      showToast(documentFormData.requires_signature
         ? "Document uploaded and signature requested!"
         : "Document uploaded successfully!"
       );
     } catch (err) {
       console.error("Upload failed:", err);
       const backendMsg = err.response?.data?.message || JSON.stringify(err.response?.data || {}, null, 2);
-      alert(`Upload failed:\n${backendMsg}`);
+      showToast(`Upload failed:\n${backendMsg}`);
     }
   };
 
@@ -808,7 +831,7 @@ const handleBioUpdate = async () => {
       const filePath = res.data.file;
 
       if (!filePath) {
-        alert('PDF not found');
+        showToast('PDF not found');
         return;
       }
 
@@ -819,7 +842,7 @@ const handleBioUpdate = async () => {
       window.open(fileUrl, '_blank');
     } catch (err) {
       console.error('Failed to generate PDF:', err);
-      alert('PDF generation failed.');
+      showToast('PDF generation failed.');
     }
   };
 
@@ -829,7 +852,7 @@ const handleBioUpdate = async () => {
       const filePath = res.data.file;
 
       if (!filePath) {
-        alert('File not found');
+        showToast('File not found');
         return;
       }
 
@@ -840,7 +863,7 @@ const handleBioUpdate = async () => {
       window.open(fileUrl, '_blank');
     } catch (err) {
       console.error('Failed to view document:', err);
-      alert('Could not open document.');
+      showToast('Could not open document.');
     }
   };
 
@@ -905,7 +928,7 @@ const handleBioUpdate = async () => {
 const handleEditRequest = async () => {
   const employeeId = localStorage.getItem('employeeId');
   if (!employeeId || !selectedField || !newFieldValue) {
-    alert("Please fill all required fields.");
+    showToast("Please fill all required fields.");
     return;
   }
 
@@ -920,11 +943,12 @@ const handleEditRequest = async () => {
   try {
     const response = await axiosInstance.post(`/employees/change-requests/`, payload);
     console.log("✅ Edit request sent:", response.data);
+     showToast("Edit Request Sent!");
     setEditRequestStatus("pending");
     setShowEditRequestModal(false);
   } catch (error) {
     console.error("❌ Request failed:", error);
-    alert("Failed to request edit access. Check console.");
+    showToast("Failed to request edit access. Check console.");
   }
 };
 
@@ -1778,10 +1802,11 @@ const handleEditRequest = async () => {
         </button>
       </div>
     </div>
+    
   </div>
 )}
 
-
+<ToastContainer />
     </div>
   );
 };
