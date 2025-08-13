@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { User, CalendarDays, PlaneTakeoff, Download, Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { User, CalendarDays, Clock, CheckCircle, XCircle, Loader2, Download, PlaneTakeoff } from 'lucide-react';
 import axiosInstance from '../../api/axiosInstance';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
@@ -15,36 +15,18 @@ import {
   CartesianGrid
 } from 'recharts';
 import dayjs from 'dayjs';
-import  useTheme from '../../hooks/useTheme';
-const COLORS = {
-  light: {
-    total_employees: 'bg-indigo-600 hover:bg-indigo-700',
-    present_today: 'bg-green-600 hover:bg-green-700',
-    checked_out_today: 'bg-amber-500 hover:bg-amber-600',
-    absent_today: 'bg-red-600 hover:bg-red-700'
-  },
-  dark: {
-    total_employees: 'bg-indigo-700 hover:bg-indigo-600',
-    present_today: 'bg-green-700 hover:bg-green-600',
-    checked_out_today: 'bg-amber-600 hover:bg-amber-500',
-    absent_today: 'bg-red-700 hover:bg-red-600'
-  }
-};
-const ICONS = {
-  total_employees: <User className="opacity-90" />,
-  present_today: <CheckCircle className="opacity-90" />,
-  checked_out_today: <PlaneTakeoff className="opacity-90" />,
-  absent_today: <XCircle className="opacity-90" />
-};
+import useTheme from '../../hooks/useTheme';
+
 const DashboardPanel = () => {
   const { theme } = useTheme();
   const [attendance, setAttendance] = useState([]);
-  const [kpis, setKpis] = useState([]);
-  const [weeklyData, setWeeklyData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tokenError, setTokenError] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [employeeCount, setEmployeeCount] = useState(0);
+  const [weeklyData, setWeeklyData] = useState([]);
+
   useEffect(() => {
     const token = localStorage.getItem('access');
     if (!token) {
@@ -52,51 +34,43 @@ const DashboardPanel = () => {
       setLoading(false);
       return;
     }
+
     const fetchData = async () => {
       try {
-        const [kpiRes, attendanceRes] = await Promise.all([
-          axiosInstance.get('analytics/hr-metrics/dashboard/'),
-          axiosInstance.get('employees/attendance/')
+        const [attendanceRes, employeesRes] = await Promise.all([
+          axiosInstance.get('employees/attendance/'),
+          axiosInstance.get('employees/employees/')
         ]);
-        const kpiData = Object.entries(kpiRes.data || {}).map(([key, val]) => ({
-          key,
-          value: val?.current_value || 0,
-          label: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-          color: COLORS[theme][key] || COLORS[theme].total_employees,
-          trend: val?.trend || 'neutral'
-        }));
-        setKpis(kpiData);
-        const attendanceList = attendanceRes.data || [];
-        setAttendance(attendanceList);
+        
+        setAttendance(attendanceRes.data || []);
+        setEmployeeCount(employeesRes.data?.length || 0);
+        setLastUpdated(new Date());
 
+        // Process weekly data
         const now = dayjs();
         const past7Days = Array.from({ length: 7 }).map((_, i) =>
           now.subtract(6 - i, 'day').format('YYYY-MM-DD')
         );
 
-        const total = Number(kpiRes.data?.total_employees?.current_value) || 0;
-        const fallbackTotal = new Set(attendanceList.map(a => a.employee)).size;
-        const actualTotal = total > 0 ? total : fallbackTotal;
-
         const summary = past7Days.map(date => {
-          const present = attendanceList.filter(
+          const present = attendanceRes.data.filter(
             a => a.check_in && dayjs(a.check_in).format('YYYY-MM-DD') === date
           ).length;
 
-          const absent = actualTotal - present;
+          const absent = employeesRes.data?.length - present;
 
           return {
             day: dayjs(date).format('ddd'),
             date: dayjs(date).format('MMM D'),
             Present: present,
-            Absent: absent >= 0 ? absent : 0
+            Absent: absent >= 0 ? absent : 0,
+            total: employeesRes.data?.length || 0
           };
         });
 
         setWeeklyData(summary);
-        setLastUpdated(new Date());
       } catch (err) {
-        console.error('❌ Dashboard fetch error:', err);
+        console.error('Dashboard fetch error:', err);
       } finally {
         setLoading(false);
       }
@@ -105,78 +79,52 @@ const DashboardPanel = () => {
     fetchData();
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
-  }, [theme]);
+  }, []);
 
-const exportToExcel = async () => {
-  setExporting(true);
-  try {
-    // Filter for today's attendance only
-    const todayRecords = attendance.filter(record => 
-      record.check_in && dayjs(record.check_in).format('YYYY-MM-DD') === today
-    );
+  const exportToExcel = async () => {
+    setExporting(true);
+    try {
+      const today = dayjs().format('YYYY-MM-DD');
+      const todayRecords = attendance.filter(record => 
+        record.check_in && dayjs(record.check_in).format('YYYY-MM-DD') === today
+      );
 
-    const sheetData = todayRecords.map(record => ({
-      'Employee Name': record.employee_name || 'N/A',
-      'Employee ID': record.employee || 'N/A',
-      'Check-In': record.check_in ? dayjs(record.check_in).format('YYYY-MM-DD HH:mm') : '-',
-      'Check-Out': record.check_out ? dayjs(record.check_out).format('YYYY-MM-DD HH:mm') : '-',
-      'Status': record.check_out ? 'Checked Out' : record.check_in ? 'Present' : 'Absent',
-      'Duration (minutes)': record.check_out 
-        ? dayjs(record.check_out).diff(dayjs(record.check_in), 'minutes')
-        : '-'
-    }));
+      const sheetData = todayRecords.map(record => ({
+        'Employee Name': record.employee_name || 'N/A',
+        'Employee ID': record.employee || 'N/A',
+        'Check-In': record.check_in ? dayjs(record.check_in).format('YYYY-MM-DD HH:mm') : '-',
+        'Check-Out': record.check_out ? dayjs(record.check_out).format('YYYY-MM-DD HH:mm') : '-',
+        'Status': record.check_out ? 'Checked Out' : record.check_in ? 'Present' : 'Absent',
+        'Duration (minutes)': record.check_out 
+          ? dayjs(record.check_out).diff(dayjs(record.check_in), 'minutes')
+          : '-'
+      }));
 
-    const worksheet = XLSX.utils.json_to_sheet(sheetData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Today\'s Attendance');
-    
-    // Add a second sheet with summary statistics
-    const summaryData = [{
-      'Total Employees': kpis.find(k => k.key === 'total_employees')?.value || 0,
-      'Present Today': todayRecords.filter(r => r.check_in).length,
-      'Checked Out Today': todayRecords.filter(r => r.check_out).length,
-      'Absent Today': (kpis.find(k => k.key === 'total_employees')?.value || 0) - 
-                      todayRecords.filter(r => r.check_in).length
-    }];
-    
-    const summarySheet = XLSX.utils.json_to_sheet(summaryData);
-    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+      const worksheet = XLSX.utils.json_to_sheet(sheetData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Today\'s Attendance');
+      
+      // Add weekly summary sheet
+      const weeklySummary = weeklyData.map(day => ({
+        'Date': day.date,
+        'Day': day.day,
+        'Present': day.Present,
+        'Absent': day.Absent,
+        'Total Employees': day.total,
+        'Attendance Rate': `${Math.round((day.Present / day.total) * 100)}%`
+      }));
+      const summarySheet = XLSX.utils.json_to_sheet(weeklySummary);
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Weekly Summary');
 
-    // Generate filename with today's date
-    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    const fileBlob = new Blob([excelBuffer], { type: 'application/octet-stream' });
-    saveAs(fileBlob, `Today_Attendance_${dayjs().format('YYYY-MM-DD')}.xlsx`);
-  } catch (error) {
-    console.error('Export error:', error);
-  } finally {
-    setExporting(false);
-  }
-};
-
-  if (tokenError) {
-    return (
-      <div className={`flex items-center justify-center min-h-screen p-6 ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
-        <div className={`max-w-md w-full p-8 rounded-xl shadow-lg text-center transition-all hover:shadow-xl ${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-800'}`}>
-          <div className="text-indigo-600 dark:text-indigo-400 text-6xl mb-6">🔒</div>
-          <h2 className="text-2xl font-bold mb-3">Authentication Required</h2>
-          <p className={`mb-6 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-            Your session has expired or you need to log in to access this dashboard
-          </p>
-          <button 
-            onClick={() => window.location.href = '/login'}
-            className="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors duration-300 shadow-md hover:shadow-lg"
-          >
-            Go to Login
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const today = dayjs().format('YYYY-MM-DD');
-  const todayAttendance = attendance.filter(
-    record => record.check_in && dayjs(record.check_in).format('YYYY-MM-DD') === today
-  );
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const fileBlob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+      saveAs(fileBlob, `Attendance_Report_${dayjs().format('YYYY-MM-DD')}.xlsx`);
+    } catch (error) {
+      console.error('Export error:', error);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const getStatusBadge = (record) => {
     if (record.check_out) {
@@ -214,16 +162,70 @@ const exportToExcel = async () => {
     );
   };
 
-  const renderTrendIcon = (trend) => {
-    switch (trend) {
-      case 'up':
-        return <span className={theme === 'dark' ? 'text-green-400' : 'text-green-500'}>↑</span>;
-      case 'down':
-        return <span className={theme === 'dark' ? 'text-red-400' : 'text-red-500'}>↓</span>;
-      default:
-        return <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>→</span>;
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      const dayData = weeklyData.find(d => d.day === label);
+      return (
+        <div className={`p-4 rounded-lg border shadow-md ${
+          theme === 'dark' 
+            ? 'bg-gray-800 border-gray-700 text-white' 
+            : 'bg-white border-gray-200 text-gray-900'
+        }`}>
+          <p className="font-semibold">{dayData?.date}</p>
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <div className="flex items-center">
+              <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
+              <span>Present: {payload[0].value}</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
+              <span>Absent: {payload[1].value}</span>
+            </div>
+            <div className="col-span-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+              <p className="text-sm">
+                <span className="font-medium">Total: </span>
+                {dayData?.total} employees
+              </p>
+              <p className="text-sm">
+                <span className="font-medium">Attendance Rate: </span>
+                {Math.round((payload[0].value / dayData?.total) * 100)}%
+              </p>
+            </div>
+          </div>
+        </div>
+      );
     }
+    return null;
   };
+
+  if (tokenError) {
+    return (
+      <div className={`flex items-center justify-center min-h-screen p-6 ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <div className={`max-w-md w-full p-8 rounded-xl shadow-lg text-center transition-all hover:shadow-xl ${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-800'}`}>
+          <div className="text-indigo-600 dark:text-indigo-400 text-6xl mb-6">🔒</div>
+          <h2 className="text-2xl font-bold mb-3">Authentication Required</h2>
+          <p className={`mb-6 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+            Your session has expired or you need to log in to access this dashboard
+          </p>
+          <button 
+            onClick={() => window.location.href = '/login'}
+            className="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors duration-300 shadow-md hover:shadow-lg"
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const today = dayjs().format('YYYY-MM-DD');
+  const todayAttendance = attendance.filter(
+    record => record.check_in && dayjs(record.check_in).format('YYYY-MM-DD') === today
+  );
+
+  const presentCount = todayAttendance.filter(r => r.check_in).length;
+  const checkedOutCount = todayAttendance.filter(r => r.check_out).length;
+  const absentCount = employeeCount - presentCount;
 
   return (
     <motion.div
@@ -235,7 +237,7 @@ const exportToExcel = async () => {
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className={`text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Welcome back, Admin</h1>
+          <h1 className={`text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Employee Attendance Dashboard</h1>
           <p className={`mt-1 flex items-center gap-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>
             <CalendarDays className="h-4 w-4" />
             {dayjs().format('dddd, MMMM D, YYYY')}
@@ -253,30 +255,163 @@ const exportToExcel = async () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {kpis.map((item, index) => (
-          <motion.div
-            key={item.key}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            whileHover={{ y: -2 }}
-            className={`flex items-center gap-4 p-6 rounded-xl shadow-sm ${item.color} text-white transition-all duration-300 hover:shadow-md`}
-          >
-            <div className="p-3 bg-white bg-opacity-20 rounded-full backdrop-blur-sm">
-              {ICONS[item.key] || <User />}
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{item.value}</p>
-              <div className="flex items-center space-x-2">
-                <p className="text-sm opacity-90">{item.label}</p>
-                {item.trend && renderTrendIcon(item.trend)}
-              </div>
-            </div>
-          </motion.div>
-        ))}
+        {/* Total Employees */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          whileHover={{ y: -2 }}
+          className={`flex items-center gap-4 p-6 rounded-xl shadow-sm ${
+            theme === 'dark' ? 'bg-indigo-700 hover:bg-indigo-600' : 'bg-indigo-600 hover:bg-indigo-700'
+          } text-white transition-all duration-300 hover:shadow-md`}
+        >
+          <div className="p-3 bg-white bg-opacity-20 rounded-full backdrop-blur-sm">
+            <User className="opacity-90" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold">{employeeCount}</p>
+            <p className="text-sm opacity-90">Total Employees</p>
+          </div>
+        </motion.div>
+
+        {/* Present Today */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          whileHover={{ y: -2 }}
+          className={`flex items-center gap-4 p-6 rounded-xl shadow-sm ${
+            theme === 'dark' ? 'bg-green-700 hover:bg-green-600' : 'bg-green-600 hover:bg-green-700'
+          } text-white transition-all duration-300 hover:shadow-md`}
+        >
+          <div className="p-3 bg-white bg-opacity-20 rounded-full backdrop-blur-sm">
+            <CheckCircle className="opacity-90" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold">{presentCount}</p>
+            <p className="text-sm opacity-90">Present Today</p>
+          </div>
+        </motion.div>
+
+        {/* Checked Out Today */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          whileHover={{ y: -2 }}
+          className={`flex items-center gap-4 p-6 rounded-xl shadow-sm ${
+            theme === 'dark' ? 'bg-amber-600 hover:bg-amber-500' : 'bg-amber-500 hover:bg-amber-600'
+          } text-white transition-all duration-300 hover:shadow-md`}
+        >
+          <div className="p-3 bg-white bg-opacity-20 rounded-full backdrop-blur-sm">
+            <PlaneTakeoff className="opacity-90" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold">{checkedOutCount}</p>
+            <p className="text-sm opacity-90">Checked Out Today</p>
+          </div>
+        </motion.div>
+
+        {/* Absent Today */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          whileHover={{ y: -2 }}
+          className={`flex items-center gap-4 p-6 rounded-xl shadow-sm ${
+            theme === 'dark' ? 'bg-red-700 hover:bg-red-600' : 'bg-red-600 hover:bg-red-700'
+          } text-white transition-all duration-300 hover:shadow-md`}
+        >
+          <div className="p-3 bg-white bg-opacity-20 rounded-full backdrop-blur-sm">
+            <XCircle className="opacity-90" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold">{absentCount >= 0 ? absentCount : 0}</p>
+            <p className="text-sm opacity-90">Absent Today</p>
+          </div>
+        </motion.div>
       </div>
 
-      {/* Real-Time Attendance Table */}
+      {/* Weekly Attendance Chart */}
+      <motion.div 
+        className={`p-6 rounded-xl shadow-sm border transition-all hover:shadow-md ${
+          theme === 'dark' 
+            ? 'bg-gray-800 border-gray-700' 
+            : 'bg-white border-gray-200'
+        }`}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3 }}
+      >
+        <div className="mb-6">
+          <h2 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+            Weekly Attendance Overview
+          </h2>
+          <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>
+            Employee presence trends over the past 7 days
+          </p>
+        </div>
+        
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={weeklyData}
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              barGap={4}
+              barCategoryGap={16}
+            >
+              <CartesianGrid 
+                strokeDasharray="3 3" 
+                vertical={false} 
+                stroke={theme === 'dark' ? '#374151' : '#e5e7eb'}
+              />
+              <XAxis 
+                dataKey="day" 
+                tick={{ fill: theme === 'dark' ? '#d1d5db' : '#6b7280' }}
+                axisLine={{ stroke: theme === 'dark' ? '#374151' : '#e5e7eb' }}
+                tickLine={false}
+              />
+              <YAxis 
+                tick={{ fill: theme === 'dark' ? '#d1d5db' : '#6b7280' }}
+                axisLine={{ stroke: theme === 'dark' ? '#374151' : '#e5e7eb' }}
+                tickLine={false}
+              />
+              <Tooltip 
+                content={<CustomTooltip />}
+                cursor={{
+                  fill: theme === 'dark' ? 'rgba(55, 65, 81, 0.5)' : 'rgba(229, 231, 235, 0.5)'
+                }}
+              />
+              <Legend 
+                wrapperStyle={{ paddingTop: '20px' }}
+                formatter={(value) => (
+                  <span className={`text-sm ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                  }`}>
+                    {value}
+                  </span>
+                )}
+              />
+              <Bar 
+                dataKey="Present" 
+                name="Present" 
+                fill="#10b981" 
+                radius={[4, 4, 0, 0]}
+                animationDuration={1500}
+              />
+              <Bar 
+                dataKey="Absent" 
+                name="Absent" 
+                fill="#ef4444" 
+                radius={[4, 4, 0, 0]}
+                animationDuration={1500}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </motion.div>
+
+      {/* Today's Attendance Table */}
       <motion.div 
         className={`p-6 rounded-xl shadow-sm border transition-all hover:shadow-md ${
           theme === 'dark' 
@@ -315,11 +450,9 @@ const exportToExcel = async () => {
         </div>
 
         {loading ? (
-          
           <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-        </div>
-        
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+          </div>
         ) : todayAttendance.length === 0 ? (
           <div className={`text-center py-12 border-2 border-dashed rounded-lg ${
             theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
@@ -421,90 +554,6 @@ const exportToExcel = async () => {
             </table>
           </div>
         )}
-      </motion.div>
-
-      {/* Weekly Attendance Chart */}
-      <motion.div 
-      
-        className={`p-6 rounded-xl shadow-sm border transition-all hover:shadow-md ${
-          theme === 'dark' 
-            ? 'bg-gray-800 border-gray-700' 
-            : 'bg-white border-gray-200'
-        }`}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.3 }}
-      >
-        <div className="mb-6">
-          
-          <h2 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Weekly Attendance Summary</h2>
-          <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>
-            Overview of present vs. absent employees over the past 7 days
-          </p>
-        </div>
-        
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={weeklyData}
-              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-            >
-              <CartesianGrid 
-                strokeDasharray="3 3" 
-                vertical={false} 
-                stroke={theme === 'dark' ? '#374151' : '#e5e7eb'}
-              />
-              <XAxis 
-                dataKey="day" 
-                tick={{ fill: theme === 'dark' ? '#d1d5db' : '#6b7280' }}
-                axisLine={{ stroke: theme === 'dark' ? '#374151' : '#e5e7eb' }}
-                tickLine={false}
-              />
-              <YAxis 
-                tick={{ fill: theme === 'dark' ? '#d1d5db' : '#6b7280' }}
-                axisLine={{ stroke: theme === 'dark' ? '#374151' : '#e5e7eb' }}
-                tickLine={false}
-              />
-              <Tooltip 
-                contentClassName={`rounded-lg border ${
-                  theme === 'dark' 
-                    ? 'border-gray-600 bg-gray-800 text-gray-100' 
-                    : 'border-gray-200 bg-white text-gray-900'
-                } shadow-md`}
-                formatter={(value, name) => [
-                  value,
-                  name === 'Present' ? 'Present employees' : 'Absent employees'
-                ]}
-                labelFormatter={(label) => {
-                  const dayData = weeklyData.find(d => d.day === label);
-                  return dayData ? dayData.date : label;
-                }}
-              />
-              <Legend 
-                wrapperStyle={{ paddingTop: '20px' }}
-                formatter={(value) => (
-                  <span className={`text-sm ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-                  }`}>
-                    {value === 'Present' ? 'Present' : 'Absent'}
-                  </span>
-                )}
-              />
-              <Bar 
-                dataKey="Present" 
-                name="Present" 
-                fill="#10b981" 
-                radius={[4, 4, 0, 0]}
-              />
-              <Bar 
-                dataKey="Absent" 
-                name="Absent" 
-                fill="#ef4444" 
-                radius={[4, 4, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
       </motion.div>
     </motion.div>
   );
