@@ -229,7 +229,7 @@ const LeaveDetail = () => {
         }}
       />
       
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-[1500px] mx-auto space-y-8 ml-16">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <motion.div 
             className="animate-fadeIn"
@@ -237,14 +237,16 @@ const LeaveDetail = () => {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.1 }}
           >
-            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-teal-500 bg-clip-text text-transparent flex items-center gap-3">
+            <div className="flex items-center gap-3">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              Leave Request Details
-            </h1>
+              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-teal-500 bg-clip-text text-transparent">
+                Leave Request Details
+              </h1>
+            </div>
             <p className="text-gray-500 dark:text-gray-400 mt-2">
-              ID: {leaveId} • Submitted on {new Date(leave.created_at).toLocaleDateString()}
+              • Submitted on {new Date(leave.created_at).toLocaleDateString()}
             </p>
           </motion.div>
           
@@ -284,7 +286,7 @@ const LeaveDetail = () => {
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: 0.25 }}
                 >
-                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">Employee</label>
+                  <label className="text-xs font-semibold  tracking-wider text-gray-500 dark:text-gray-400 mb-1">Employee</label>
                   <div className="flex items-center gap-3">
                     <div className="bg-gradient-to-br from-teal-400 to-teal-500 w-10 h-10 rounded-full flex items-center justify-center text-white font-medium shadow-sm">
                       {emp.first_name.charAt(0)}{emp.last_name.charAt(0)}
@@ -302,7 +304,7 @@ const LeaveDetail = () => {
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: 0.3 }}
                 >
-                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">Leave Type</label>
+                  <label className="text-xs font-semibold tracking-wider text-gray-500 dark:text-gray-400 mb-1">Leave Type</label>
                   <p className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-200 dark:border-gray-600">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -317,7 +319,7 @@ const LeaveDetail = () => {
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: 0.35 }}
                 >
-                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">Reason</label>
+                  <label className="text-xs font-semibold  tracking-wider text-gray-500 dark:text-gray-400 mb-1">Reason</label>
                   <p className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
                     {leave.reason || '—'}
                   </p>
@@ -332,7 +334,7 @@ const LeaveDetail = () => {
                   transition={{ delay: 0.25 }}
                 >
                   <div>
-                    <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">Start Date</label>
+                    <label className="text-xs font-semibold tracking-wider text-gray-500 dark:text-gray-400 mb-1">Start Date</label>
                     <p className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-200 dark:border-gray-600">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -342,7 +344,7 @@ const LeaveDetail = () => {
                   </div>
                   
                   <div>
-                    <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">End Date</label>
+                    <label className="text-xs font-semibold tracking-wider text-gray-500 dark:text-gray-400 mb-1">End Date</label>
                     <p className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-200 dark:border-gray-600">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -352,7 +354,7 @@ const LeaveDetail = () => {
                   </div>
                   
                   <div>
-                    <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">Total Days</label>
+                    <label className="text-xs font-semibold tracking-wider text-gray-500 dark:text-gray-400 mb-1">Total Days</label>
                     <p className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-200 dark:border-gray-600">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -362,7 +364,7 @@ const LeaveDetail = () => {
                   </div>
                   
                   <div>
-                    <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">Half Day</label>
+                    <label className="text-xs font-semibold tracking-wider text-gray-500 dark:text-gray-400 mb-1">Half Day</label>
                     <p className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-200 dark:border-gray-600">
                       {leave.half_day ? (
                         <>
@@ -389,7 +391,7 @@ const LeaveDetail = () => {
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: 0.3 }}
                 >
-                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">Status</label>
+                  <label className="text-xs font-semibold tracking-wider text-gray-500 dark:text-gray-400 mb-1">Status</label>
                   <motion.div 
                     className={`inline-flex items-center px-4 py-2 rounded-lg ${statusColors[leave.status].bg} ${statusColors[leave.status].text} font-medium shadow-sm`}
                     animate={{ 
@@ -401,7 +403,7 @@ const LeaveDetail = () => {
                     transition={{ duration: 0.5, repeat: 1, repeatType: 'reverse' }}
                   >
                     {statusColors[leave.status].icon}
-                    <span className={`w-2.5 h-2.5 rounded-full mr-2 ${leave.status === 'APPROVED' ? 'bg-green-500' : leave.status === 'REJECTED' ? 'bg-red-500' : 'bg-yellow-500'}`}></span>
+                    <span className={`w-2 h-2 rounded-full mr-2 ${leave.status === 'APPROVED' ? 'bg-green-500' : leave.status === 'REJECTED' ? 'bg-red-500' : 'bg-yellow-500'}`}></span>
                     {leave.status}
                   </motion.div>
                   
@@ -434,7 +436,7 @@ const LeaveDetail = () => {
                       animate={{ opacity: 1, height: 'auto' }}
                       transition={{ delay: 0.4 }}
                     >
-                      <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">Rejection Reason</label>
+                      <label className="text-xs font-semibold tracking-wider text-gray-500 dark:text-gray-400 mb-1">Rejection Reason</label>
                       <p className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 text-red-700 dark:text-red-200 border border-red-200 dark:border-red-800">
                         {leave.rejection_reason}
                       </p>

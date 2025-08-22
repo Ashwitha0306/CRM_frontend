@@ -1121,6 +1121,7 @@ const handleEditRequest = async () => {
   }
 
   const renderPersonalTab = () => (
+     <div className="max-w-[1500px] mx-auto space-y-8 ml-20">
     <div className="grid grid-cols-1 gap-6">
       <Card title="Basic Information" icon={<UserCircleIcon className="h-5 w-5 text-blue-500" />} fullWidth>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -1256,9 +1257,11 @@ const handleEditRequest = async () => {
         </div>
       )} */}
     </div>
+    </div>
   );
 
   const renderProfessionalTab = () => (
+     <div className="max-w-[1500px] mx-auto space-y-8 ml-20">
     <div className="grid grid-cols-1 gap-6">
       <Card title="Employment Details" icon={<BriefcaseIcon className="h-5 w-5 text-blue-500" />} fullWidth>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -1499,11 +1502,12 @@ const handleEditRequest = async () => {
     )}
   </div>
 </Card>
-
+</div>
     </div>
   );
 
   const renderDocumentsTab = () => (
+     <div className="max-w-[1500px] mx-auto space-y-8 ml-20">
     <div className="min-h-screen w-full bg-gray-50 dark:bg-gray-900 p-10">
       <Card title="Documents" icon={<DocumentTextIcon className="h-5 w-5 text-blue-500" />} fullWidth>
         <div className="flex justify-between items-center mb-4">
@@ -1588,11 +1592,14 @@ const handleEditRequest = async () => {
         </div>
       )}
     </div>
+    </div>
   );
 
   return (
     <div className="max-w-full px-4 py-8 space-y-10 bg-white dark:bg-gray-900 max-h-f">
+       <div className="max-w-[1500px] mx-auto space-y-8 ml-20">
       <div className="bg-gradient-to-r from-blue-800 to-indigo-900 text-white rounded-xl shadow-lg p-6 md:p-8 flex flex-col md:flex-row gap-6 items-start md:items-center">
+       
         <div className="relative">
           {employee?.profile_picture ? (
             <img
@@ -1679,6 +1686,7 @@ const handleEditRequest = async () => {
             </div>
           </div>
         </div>
+      </div>
       </div>
 
       <div className="flex p-1 bg-gray-200 dark:bg-gray-800 rounded-full max-w-md mx-auto">

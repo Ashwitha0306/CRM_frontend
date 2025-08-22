@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import axios from 'axios';
+import axios from '../../api/axiosInstance';
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
 import {
@@ -87,43 +87,25 @@ const AttendancePanel = () => {
   });
   const recordsPerPage = 10;
 
-  const getAxiosAuth = useCallback(() => {
-    const token = localStorage.getItem('access');
-    if (!token) {
-      setError('Token not found. Please login.');
-      return null;
-    }
-    return axios.create({
-      baseURL: 'https://genhub-crm.onrender.com/api/',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-  }, []);
-
-  const fetchData = useCallback(async () => {
-    const axiosAuth = getAxiosAuth();
-    if (!axiosAuth) return;
-
-    try {
-      setLoading(true);
-      setError('');
-      
-      const formattedStartDate = dateRange.start.toISOString().split('T')[0];
-      const formattedEndDate = dateRange.end.toISOString().split('T')[0];
-      
-      const prevStartDate = new Date(dateRange.start);
-      const prevEndDate = new Date(dateRange.start);
-      const daysDifference = Math.ceil((dateRange.end - dateRange.start) / (1000 * 60 * 60 * 24));
-      prevStartDate.setDate(prevStartDate.getDate() - daysDifference - 1);
-      prevEndDate.setDate(prevEndDate.getDate() - 1);
-      
-      const [attRes, empRes, prevAttRes] = await Promise.all([
-        axiosAuth.get(`employees/attendance/?start_date=${formattedStartDate}&end_date=${formattedEndDate}`),
-        axiosAuth.get('employees/employees/'),
-        axiosAuth.get(`employees/attendance/?start_date=${prevStartDate.toISOString().split('T')[0]}&end_date=${prevEndDate.toISOString().split('T')[0]}`)
-      ]);
-
+const fetchData = useCallback(async () => {
+  try {
+    setLoading(true);
+    setError('');
+    
+    const formattedStartDate = dateRange.start.toISOString().split('T')[0];
+    const formattedEndDate = dateRange.end.toISOString().split('T')[0];
+    
+    const prevStartDate = new Date(dateRange.start);
+    const prevEndDate = new Date(dateRange.start);
+    const daysDifference = Math.ceil((dateRange.end - dateRange.start) / (1000 * 60 * 60 * 24));
+    prevStartDate.setDate(prevStartDate.getDate() - daysDifference - 1);
+    prevEndDate.setDate(prevEndDate.getDate() - 1);
+    
+    const [attRes, empRes, prevAttRes] = await Promise.all([
+      axios.get(`employees/attendance/?start_date=${formattedStartDate}&end_date=${formattedEndDate}`),
+      axios.get('employees/employees/'),
+      axios.get(`employees/attendance/?start_date=${prevStartDate.toISOString().split('T')[0]}&end_date=${prevEndDate.toISOString().split('T')[0]}`)
+    ]);
       const filteredRecords = attRes.data.filter(record => {
         const recordDate = new Date(record.date);
         return recordDate >= dateRange.start && recordDate <= dateRange.end;
@@ -148,7 +130,7 @@ const AttendancePanel = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [dateRange, getAxiosAuth]);
+  }, [dateRange]);
 
   useEffect(() => {
     fetchData();
@@ -237,52 +219,48 @@ const AttendancePanel = () => {
     setDailyStats(dailyStatsArray);
   };
 
-  const fetchEmployeeData = async (employeeId) => {
-    const axiosAuth = getAxiosAuth();
-    if (!axiosAuth) return;
-
-    try {
-      setLoading(true);
-      setError('');
-      
-      const empRes = await axiosAuth.get(`employees/employees/${employeeId}/`);
-      setSelectedEmployee(empRes.data);
-      
-      const attRes = await axiosAuth.get(
-        `employees/attendance/?employee_id=${employeeId}&start_date=${dateRange.start.toISOString().split('T')[0]}&end_date=${dateRange.end.toISOString().split('T')[0]}`
-      );
-      
-      const empRecords = attRes.data.filter(record => {
-        const recordDate = new Date(record.date);
-        return recordDate >= dateRange.start && recordDate <= dateRange.end;
-      });
-      
-      const presentCount = empRecords.filter(r => r.status === 'PRESENT').length;
-      const absentCount = empRecords.filter(r => r.status === 'ABSENT').length;
-      const half_dayCount = empRecords.filter(r => r.status === 'HALF_DAY').length;
-      
-      const presentDays = empRecords.filter(r => r.status === 'PRESENT' && r.total_hours);
-      const totalHours = presentDays.reduce((sum, emp) => sum + parseFloat(emp.total_hours || 0), 0);
-      const avgHours = presentDays.length > 0 ? (totalHours / presentDays.length).toFixed(1) : '0.0';
-      
-      setEmployeeStats({
-        present: presentCount,
-        absent: absentCount,
-        half_day: half_dayCount,
-        total: empRecords.length,
-        averageHours: avgHours,
-        records: empRecords
-      });
-      
-      setViewMode('employee');
-    } catch (err) {
-      console.error('Error fetching employee data:', err);
-      setError('Failed to fetch employee data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
+const fetchEmployeeData = async (employeeId) => {
+  try {
+    setLoading(true);
+    setError('');
+    
+    const empRes = await axios.get(`employees/employees/${employeeId}/`);
+    setSelectedEmployee(empRes.data);
+    
+    const attRes = await axios.get(
+      `employees/attendance/?employee_id=${employeeId}&start_date=${dateRange.start.toISOString().split('T')[0]}&end_date=${dateRange.end.toISOString().split('T')[0]}`
+    );
+    
+    const empRecords = attRes.data.filter(record => {
+      const recordDate = new Date(record.date);
+      return recordDate >= dateRange.start && recordDate <= dateRange.end;
+    });
+    
+    const presentCount = empRecords.filter(r => r.status === 'PRESENT').length;
+    const absentCount = empRecords.filter(r => r.status === 'ABSENT').length;
+    const half_dayCount = empRecords.filter(r => r.status === 'HALF_DAY').length;
+    
+    const presentDays = empRecords.filter(r => r.status === 'PRESENT' && r.total_hours);
+    const totalHours = presentDays.reduce((sum, emp) => sum + parseFloat(emp.total_hours || 0), 0);
+    const avgHours = presentDays.length > 0 ? (totalHours / presentDays.length).toFixed(1) : '0.0';
+    
+    setEmployeeStats({
+      present: presentCount,
+      absent: absentCount,
+      half_day: half_dayCount,
+      total: empRecords.length,
+      averageHours: avgHours,
+      records: empRecords
+    });
+    
+    setViewMode('employee');
+  } catch (err) {
+    console.error('Error fetching employee data:', err);
+    setError('Failed to fetch employee data');
+  } finally {
+    setLoading(false);
+  }
+};
   const getPieData = () => {
     const countMap = {};
     attendanceRecords.forEach((record) => {
@@ -417,40 +395,37 @@ const AttendancePanel = () => {
 
   const uniqueDepartments = [...new Set(Object.values(deptMap))].filter(Boolean);
 
-  const exportToExcel = async () => {
-    const axiosAuth = getAxiosAuth();
-    if (!axiosAuth) return;
+const exportToExcel = async () => {
+  if (!exportStartDate || !exportEndDate) {
+    setError('Please select both start and end dates');
+    return;
+  }
 
-    if (!exportStartDate || !exportEndDate) {
-      setError('Please select both start and end dates');
-      return;
+  try {
+    setExportLoading(true);
+    setError('');
+    
+    const allRecordsResponse = await axios.get(
+      `employees/attendance/?start_date=${exportStartDate}&end_date=${exportEndDate}`
+    );
+    
+    let records = allRecordsResponse.data;
+    if (exportEmployeeId) {
+      records = records.filter(record => record.employee === exportEmployeeId);
     }
 
-    try {
-      setExportLoading(true);
-      setError('');
-      
-      const allRecordsResponse = await axiosAuth.get(
-        `employees/attendance/?start_date=${exportStartDate}&end_date=${exportEndDate}`
-      );
-      
-      let records = allRecordsResponse.data;
-      if (exportEmployeeId) {
-        records = records.filter(record => record.employee === exportEmployeeId);
-      }
+    const startDate = new Date(exportStartDate);
+    const endDate = new Date(exportEndDate);
+    
+    records = records.filter(record => {
+      const recordDate = new Date(record.date);
+      return recordDate >= startDate && recordDate <= endDate;
+    });
 
-      const startDate = new Date(exportStartDate);
-      const endDate = new Date(exportEndDate);
-      
-      records = records.filter(record => {
-        const recordDate = new Date(record.date);
-        return recordDate >= startDate && recordDate <= endDate;
-      });
-
-      if (records.length === 0) {
-        setError('No records found for the selected date range' + (exportEmployeeId ? ' and employee' : ''));
-        return;
-      }
+    if (records.length === 0) {
+      setError('No records found for the selected date range' + (exportEmployeeId ? ' and employee' : ''));
+      return;
+    }
 
       records.sort((a, b) => new Date(b.date) - new Date(a.date));
 

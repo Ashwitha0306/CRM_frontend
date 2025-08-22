@@ -21,7 +21,6 @@ import {
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import useTheme  from '../../hooks/useTheme'; // Import the useTheme hook
-
 const navItems = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: <FiHome />, end: true },
   { to: '/admin/dashboard/users', label: 'Users', icon: <FiUser /> },

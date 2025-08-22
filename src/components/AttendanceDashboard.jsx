@@ -23,6 +23,15 @@ import {
   LogoutOutlined,
   LoginOutlined
 } from '@ant-design/icons';
+import { 
+  FiClock, 
+  FiUserCheck, 
+  FiUserX, 
+  FiCalendar,
+  FiFilter,
+  FiSearch,
+  FiRefreshCw
+} from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -43,6 +52,13 @@ const AttendanceDashboard = () => {
   const [todaysStatus, setTodaysStatus] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [workDuration, setWorkDuration] = useState('00:00:00');
+   const [attendanceRecords, setAttendanceRecords] = useState([]);
+     const [error, setError] = useState('');
+     const [refreshing, setRefreshing] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('ALL');
+   const [currentPage, setCurrentPage] = useState(1);
+  const recordsPerPage = 10;
 
   const employeeId = localStorage.getItem('employeeId');
 
@@ -71,6 +87,7 @@ const AttendanceDashboard = () => {
       );
     }
   };
+  
 
   // Theme detection
   useEffect(() => {
@@ -106,6 +123,7 @@ const AttendanceDashboard = () => {
         });
 
       setSummary(count);
+      setAttendanceRecords(res.data);
       setRecords(updatedData);
       calculateStreaks(updatedData);
       checkTodaysStatus(updatedData);
@@ -211,6 +229,7 @@ const AttendanceDashboard = () => {
       });
     }
   };
+  
 
   // Status card configuration
   const statusCardData = {
@@ -248,7 +267,28 @@ const AttendanceDashboard = () => {
       label: 'Not Recorded'
     }
   };
-
+    const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', { 
+        weekday: 'short', 
+        month: 'short', 
+        day: 'numeric' 
+      });
+    } catch (e) {
+      return '-';
+    }
+  };
+  const formatTime = (timeString) => {
+    if (!timeString) return '-';
+    try {
+      const date = new Date(timeString);
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+      return '-';
+    }
+  };
   const getStatusCardProps = () => {
     return todaysStatus ? statusCardData[todaysStatus] : statusCardData.default;
   };
@@ -276,6 +316,28 @@ const AttendanceDashboard = () => {
   const heatmapData = getHeatmapData();
   const maxHours = Math.max(...heatmapData, 8);
 
+  const filteredRecords = attendanceRecords.filter(record => {
+  const recordDate = new Date(record.date);
+  const recordMonth = recordDate.getMonth();
+  const recordYear = recordDate.getFullYear();
+
+  const selectedMonth = selectedDate.getMonth();
+  const selectedYear = selectedDate.getFullYear();
+
+  // Check if record matches selected month/year
+  const matchesMonthYear = recordMonth === selectedMonth && recordYear === selectedYear;
+  
+  // Existing filters
+  const matchesSearch = record.date?.toLowerCase().includes(searchTerm.toLowerCase());
+  const matchesStatus = statusFilter === 'ALL' || record.status === statusFilter;
+
+  return matchesMonthYear && matchesSearch && matchesStatus;
+});
+    const indexOfLastRecord = currentPage * recordsPerPage;
+  const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
+  const currentRecords = filteredRecords.slice(indexOfFirstRecord, indexOfLastRecord);
+  const totalPages = Math.ceil(filteredRecords.length / recordsPerPage);
+
   const renderHeatmap = () => {
     return (
       <div className="grid grid-cols-7 gap-1 mt-4">
@@ -294,6 +356,7 @@ const AttendanceDashboard = () => {
       </div>
     );
   };
+  
 
   // Chart configuration
   const chartData = {
@@ -397,6 +460,35 @@ const AttendanceDashboard = () => {
     }
     return null;
   };
+  const StatusBadge = ({ status }) => {
+  const statusConfig = {
+    PRESENT: {
+      color: 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200',
+      icon: <FiUserCheck className="mr-1" />
+    },
+    ABSENT: {
+      color: 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200',
+      icon: <FiUserX className="mr-1" />
+    },
+    HALF_DAY: {
+      color: 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200',
+      icon: <FiClock className="mr-1" />
+    }
+  };
+
+  const config = statusConfig[status] || {
+    color: 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200',
+    icon: <FiClock className="mr-1" />
+  };
+
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
+      {config.icon}
+      <span>{status === 'half_day' ? 'Half Day' : status.charAt(0).toUpperCase() + status.slice(1)}</span>
+    </span>
+  );
+};
+  
 
 
 if (loading) {
@@ -420,7 +512,9 @@ if (loading) {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
       className="bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100 min-h-screen w-full p-4 md:p-8 font-sans transition-colors duration-300"
+      // className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 text-gray-800 dark:text-gray-200 p-4 sm:p-6"
     >
+      <div className="max-w-[1500px] mx-auto space-y-8 ml-16">
       {/* Enhanced Header with Streak Counter */}
            <header className="mb-8">
              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -699,133 +793,164 @@ if (loading) {
         transition={{ delay: 0.5 }}
         className="p-5 rounded-2xl shadow bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700"
       >
-        <div className="flex justify-between items-center mb-4 ">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">
-            Attendance Records
-          </h2>
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            {records.length} records found
-          </span>
-        </div>
-<div className="w-full rounded-lg border border-gray-200 dark:border-gray-700">
-   <div className="p-2 max-h-60 overflow-y-auto custom-scroll">  
-            <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                {['Date', 'Status', 'Check-In', 'Check-Out', 'Hours'].map((header, index) => (
-                  <motion.th
-                    key={header}
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.6 + index * 0.05 }}
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                  >
-                    {header}
-                  </motion.th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              <AnimatePresence>
-                {records.length > 0 ? (
-                  records.map((rec, index) => {
-                    const checkInDate = rec.check_in ? new Date(rec.check_in) : null;
-                    const checkOutDate = rec.check_out ? new Date(rec.check_out) : null;
-                    
-                    const statusColor = {
-                      present: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-                      absent: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-                      // late: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
-                      half_day: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-                    }[rec.status.toLowerCase()] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
-
-                    return (
-                      <motion.tr
-                        key={rec.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.7 + index * 0.03 }}
-                        whileHover={{ scale: 1.005, backgroundColor: isDarkMode ? 'rgba(55, 65, 81, 0.5)' : 'rgba(249, 250, 251, 0.5)' }}
-                        className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {rec.date}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <motion.span 
-                            whileHover={{ scale: 1.05 }}
-                            className={`px-2 py-1 text-xs font-semibold rounded-full ${statusColor}`}
-                          >
-                            {rec.status}
-                          </motion.span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          {checkInDate ? (
-                            <>
-                              <div>{checkInDate.toLocaleDateString()}</div>
-                              <div className="text-xs text-gray-400 dark:text-gray-500">
-                                {checkInDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </div>
-                            </>
-                          ) : (
-                            '—'
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          {checkOutDate ? (
-                            <>
-                              <div>{checkOutDate.toLocaleDateString()}</div>
-                              <div className="text-xs text-gray-400 dark:text-gray-500">
-                                {checkOutDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </div>
-                            </>
-                          ) : (
-                            '—'
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {rec.total_hours || '—'}
-                        </td>
-                      </motion.tr>
-                    );
-                  })
-                ) : (
-                  <motion.tr
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.8 }}
-                  >
-                    <td colSpan="5" className="px-6 py-8 text-center">
-                      <motion.div 
-                        initial={{ scale: 0.9 }}
-                        animate={{ scale: 1 }}
-                        className="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500"
-                      >
-                        <svg
-                          className="w-12 h-12 mb-3"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={1.5}
-                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                          />
-                        </svg>
-                        <p className="text-lg">No attendance records found</p>
-                        <p className="text-sm mt-1">Your records will appear here once available</p>
-                      </motion.div>
-                    </td>
-                  </motion.tr>
-                )}
-              </AnimatePresence>
-            </tbody>
-          </table>
+         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700 transition-colors mt-8">
+      <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-white flex items-center">
+          <FiCalendar className="mr-2 text-indigo-600 dark:text-indigo-400" />
+          Attendance Records - {selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+        </h3>
+    
+        {/* <span className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full">
+              {selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+            </span> */}
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <div className="relative flex-grow sm:w-64">
+            
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <FiSearch className="text-gray-400 dark:text-gray-500" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search dates..."
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-500 transition-colors"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
           </div>
+          
+          <select
+            className="block w-full sm:w-32 pl-3 pr-8 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-gray-700 dark:text-gray-300 transition-colors"
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+          >
+            <option value="ALL">All Status</option>
+            <option value="PRESENT">Present</option>
+            <option value="ABSENT">Absent</option>
+            <option value="HALF_DAY">Half day</option>
+          </select>
+          
+           
+      
+          {/* <button 
+            onClick={() => {
+              setRefreshing(true);
+              fetchData().then(() => setRefreshing(false));
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-colors"
+          >
+            <FiRefreshCw className={`${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </button> */}
         </div>
+      </div>
+      
+      <div className="w-full overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead className="bg-gray-50 dark:bg-gray-700">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Date
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Check-In
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Check-Out
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Hours
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            {loading ? (
+              <tr>
+                <td colSpan="5" className="px-6 py-4 text-center">
+                  <div className="flex justify-center items-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-200"></div>
+                  </div>
+                </td>
+              </tr>
+            ) : error ? (
+              <tr>
+                <td colSpan="5" className="px-6 py-4 text-center text-red-500">
+                  {error}
+                </td>
+              </tr>
+            ) : currentRecords.length === 0 ? (
+              <tr>
+                <td colSpan="5" className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <div className="flex flex-col items-center justify-center">
+                    <FiFilter className="text-3xl text-gray-400 dark:text-gray-500 mb-2" />
+                    <p>No records found</p>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              currentRecords.map((record, i) => (
+                <tr 
+                  key={i} 
+                  className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                >
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">
+                    {formatDate(record.date)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <StatusBadge status={record.status} />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    {formatTime(record.check_in)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    {record.check_out ? formatTime(record.check_out) : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    {record.total_hours || '-'}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+      
+      <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-3">
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          Showing <span className="font-medium text-gray-700 dark:text-gray-300">
+            {Math.min(indexOfFirstRecord + 1, filteredRecords.length)}-{Math.min(indexOfLastRecord, filteredRecords.length)}
+          </span> of <span className="font-medium text-gray-700 dark:text-gray-300">{filteredRecords.length}</span> records
+        </div>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className="px-3 py-1 rounded-md border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Previous
+          </button>
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button 
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages || totalPages === 0}
+            className="px-3 py-1 rounded-md border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    </div>
       </motion.div>
 
       <ToastContainer
@@ -844,6 +969,7 @@ if (loading) {
           boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
         }}
       />
+      </div>
     </motion.div>
   );
 };

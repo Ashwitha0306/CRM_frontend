@@ -59,41 +59,43 @@ const TaskManagement = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 const [activeTimer, setActiveTimer] = useState(null); // Track currently active timer
+const [timeLogsForSelectedTask, setTimeLogsForSelectedTask] = useState([]);
+const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   // Status and priority configurations with enhanced styling
   const statusConfig = {
     not_started: {
       bg: 'bg-gray-100 dark:bg-gray-700',
       border: 'border-gray-300 dark:border-gray-600',
       text: 'text-gray-700 dark:text-gray-300',
-      icon: <FiList className="h-4 w-4" />,
+      icon: <FiList className="h-4 w-4 mr-2" />,
       label: 'Not Started',
     },
     in_progress: {
       bg: 'bg-blue-50 dark:bg-blue-700',
       border: 'border-blue-200 dark:border-blue-600',
       text: 'text-blue-600 dark:text-blue-100',
-      icon: <FiRefreshCw className="h-4 w-4 animate-spin" />,
+      icon: <FiRefreshCw className="h-4 w-4 mr-2 animate-spin" />,
       label: 'In Progress',
     },
     pending_approval: {
       bg: 'bg-yellow-50 dark:bg-yellow-700',
       border: 'border-yellow-200 dark:border-yellow-600',
       text: 'text-yellow-600 dark:text-yellow-100',
-      icon: <FiAlertTriangle className="h-4 w-4" />,
+      icon: <FiAlertTriangle className="h-4 w-4 mr-2" />,
       label: 'Pending Approval',
     },
     completed: {
       bg: 'bg-green-50 dark:bg-green-700',
       border: 'border-green-200 dark:border-green-600',
       text: 'text-green-600 dark:text-green-100',
-      icon: <FiCheckCircle className="h-4 w-4" />,
+      icon: <FiCheckCircle className="h-4 w-4 mr-2" />,
       label: 'Completed',
     },
     cancelled: {
       bg: 'bg-red-50 dark:bg-red-700',
       border: 'border-red-200 dark:border-red-600',
       text: 'text-red-600 dark:text-red-100',
-      icon: <FiX className="h-4 w-4" />,
+      icon: <FiX className="h-4 w-4 mr-2" />,
       label: 'Cancelled',
     },
   };
@@ -217,6 +219,29 @@ useEffect(() => {
   };
   fetchActiveTimerLog();
 }, [activeTimer]);
+// Add this effect to fetch logs when a task is selected
+useEffect(() => {
+  const fetchLogsForSelectedTask = async () => {
+    if (selectedTask) {
+      setIsLoadingLogs(true);
+      try {
+        const res = await axios.get(`/employees/task-time-logs/?task=${selectedTask.id}`);
+        setTimeLogsForSelectedTask(res.data);
+      } catch (err) {
+        console.error('Failed to load time logs:', err);
+      } finally {
+        setIsLoadingLogs(false);
+      }
+    }
+  };
+  
+  fetchLogsForSelectedTask();
+}, [selectedTask]);
+
+// Calculate total hours for the selected task
+const totalHoursForSelectedTask = timeLogsForSelectedTask.reduce(
+  (total, log) => total + (parseFloat(log.hours_spent) || 0), 0
+);
 
   const updateTaskStatus = async (taskId, status) => {
     try {
@@ -257,8 +282,8 @@ useEffect(() => {
   }, []);
 
    return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 text-gray-800 dark:text-gray-200 p-4 sm:p-6">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div  className="bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100 min-h-screen w-full p-4 md:p-8 font-sans transition-colors duration-300">
+      <div className="max-w-[1500px] mx-auto space-y-8 ml-16">
         {/* Header Section */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
@@ -367,12 +392,12 @@ useEffect(() => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="flex flex-wrap gap-3 mt-8 border-b border-gray-200 dark:border-gray-700 pb-3"
+          className="flex flex-wrap gap-5 mt-8 border-b border-gray-200 dark:border-gray-700 pb-3"
         >
           {['all', ...Object.keys(statusConfig)].map((tab) => {
             const isAllTab = tab === 'all';
             const tabLabel = isAllTab ? 'All Tasks' : statusConfig[tab]?.label;
-            const tabIcon = isAllTab ? <FiFilter className="h-4 w-4 mr-1" /> : statusConfig[tab]?.icon;
+            const tabIcon = isAllTab ? <FiFilter className="h-4 w-4 mr-2" /> : statusConfig[tab]?.icon;
 
             const baseClasses = "px-5 py-2 rounded-lg text-sm font-medium transition duration-300 ease-in-out flex items-center shadow-sm";
             const activeClasses = "bg-teal-500 dark:bg-teal-700 text-white";
@@ -577,7 +602,7 @@ useEffect(() => {
               </div>
             </div>
             <div className="px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 rounded-full text-sm font-medium mt-8">
-              Total Hours: {selectedTask.totalHours?.toFixed(2)|| '0.00'}
+             Total Hours: {totalHoursForSelectedTask.toFixed(2)|| '0.0'}
             </div>
           </div>
 
@@ -608,7 +633,11 @@ useEffect(() => {
               </button> */}
             </div>
             
-            <TaskTimeLogTable task={selectedTask} />
+           <TaskTimeLogTable 
+  task={selectedTask} 
+  logs={timeLogsForSelectedTask}
+  isLoading={isLoadingLogs}
+/>
           </div>
         </div>
 

@@ -3,6 +3,7 @@ import React from 'react';
 
 const Header = ({ employee }) => {
   return (
+     <div className="max-w-7xl mx-auto space-y-8">
     <div className="flex justify-between items-center px-6 py-4 bg-[#1f1f1f] text-white rounded shadow">
       <div>
         <h2 className="text-xl font-semibold">
@@ -15,6 +16,7 @@ const Header = ({ employee }) => {
         alt="Profile"
         className="w-10 h-10 rounded-full object-cover border border-gray-600"
       />
+    </div>
     </div>
   );
 };

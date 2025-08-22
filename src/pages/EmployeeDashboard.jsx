@@ -134,6 +134,7 @@ const refreshData = async () => {
 
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-white font-sans">
+       <div className="max-w-[1500px] mx-auto space-y-8 ml-24">
       {/* Header Section */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl p-6 shadow-xl flex flex-col md:flex-row items-center md:items-start gap-6">
         {employee?.profile_picture ? (
@@ -495,7 +496,7 @@ const refreshData = async () => {
           </div>
         </div>
       </main>
-    </div></div>
+    </div></div></div>
   );
 };
 
